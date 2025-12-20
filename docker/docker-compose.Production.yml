@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: volleyer-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - volleyer-network
+
+  auth-service:
+    image: registry.digitalocean.com/${DO_REGISTRY_NAME}/volleyer-auth:latest
+    container_name: volleyer-auth
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5150
+      - AWS_ACCESS_KEY_ID=${AUTH_AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AUTH_AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - AWS_REGION=${AWS_DEFAULT_REGION}
+    networks:
+      - volleyer-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5150/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  events-service:
+    image: registry.digitalocean.com/${DO_REGISTRY_NAME}/volleyer-events:latest
+    container_name: volleyer-events
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5160
+      - AWS_ACCESS_KEY_ID=${EVENTS_AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${EVENTS_AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - AWS_REGION=${AWS_DEFAULT_REGION}
+    networks:
+      - volleyer-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5160/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  profile-service:
+    image: registry.digitalocean.com/${DO_REGISTRY_NAME}/volleyer-profile:latest
+    container_name: volleyer-profile
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5170
+      - AWS_ACCESS_KEY_ID=${PROFILE_AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${PROFILE_AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - AWS_REGION=${AWS_DEFAULT_REGION}
+    networks:
+      - volleyer-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5170/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  message-service:
+    image: registry.digitalocean.com/${DO_REGISTRY_NAME}/volleyer-message:latest
+    container_name: volleyer-message
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5180
+      - AWS_ACCESS_KEY_ID=${MESSAGE_AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${MESSAGE_AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - AWS_REGION=${AWS_DEFAULT_REGION}
+    networks:
+      - volleyer-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5180/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  volleyer-network:
+    driver: bridge

@@ -1,0 +1,228 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Shared Infrastructure for Volleyer App"
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    Description: Deployment environment (e.g., qa, prod)
+    AllowedValues:
+      - qa
+      - prod
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: Master password for RDS
+  VpcId:
+    Type: String
+    Description: VPC ID where resources will be deployed
+
+Resources:
+  # Security groups
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable access to RDS instances
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for ElastiCache Redis
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-redis-sg-${Environment}"
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Lambda functions
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-lambda-sg-${Environment}"
+
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for ECS tasks
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-ecs-sg-${Environment}"
+
+  VPCEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for VPC endpoints
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+          Description: Allow Lambda to access VPC endpoints
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !GetAtt ECSSecurityGroup.GroupId
+          Description: Allow ECS tasks to access VPC endpoints
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-vpce-sg-${Environment}"
+
+  # SSM VPC Endpoint
+  SSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      VpcId: !Ref VpcId
+      SubnetIds:
+        - subnet-0b59943b1b3fddba3
+        - subnet-0d68aa28c7d063573
+        - subnet-0fa7a2fa4f999bf2c
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointSecurityGroup.GroupId
+      PrivateDnsEnabled: true
+
+  # KMS VPC Endpoint (for SecureString parameters)
+  KMSEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.kms"
+      VpcId: !Ref VpcId
+      SubnetIds:
+        - subnet-0b59943b1b3fddba3
+        - subnet-0d68aa28c7d063573
+        - subnet-0fa7a2fa4f999bf2c
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointSecurityGroup.GroupId
+      PrivateDnsEnabled: true
+
+  PostgresInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub "volleyer-postgres-${Environment}"
+      Engine: postgres
+      EngineVersion: "17.6"
+      DBInstanceClass: db.t3.micro # Free tier eligible
+      AllocatedStorage: 20
+      StorageType: gp2
+      StorageEncrypted: true
+      MasterUsername: volleyeradmin
+      MasterUserPassword: !Ref DBPassword
+      VPCSecurityGroups:
+        - !GetAtt DatabaseSecurityGroup.GroupId
+      BackupRetentionPeriod: 7
+      PreferredBackupWindow: "03:00-04:00"
+      PreferredMaintenanceWindow: "sun:04:00-sun:05:00"
+      MultiAZ: false # Set true for production
+      PubliclyAccessible: false
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-postgres-${Environment}"
+
+  # ElastiCache Redis
+  RedisCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      ClusterName: !Sub "volleyer-redis-${Environment}"
+      Engine: redis
+      CacheNodeType: cache.t3.micro # Free tier eligible
+      NumCacheNodes: 1
+      VpcSecurityGroupIds:
+        - !GetAtt RedisSecurityGroup.GroupId
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-redis-${Environment}"
+
+  # S3 Bucket for profile images
+  ImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "volleyer-images-${Environment}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET, PUT, POST]
+            AllowedOrigins: ["http://localhost:3000", "https://volleyer.app"] # Restrict in production
+            MaxAge: 3600
+
+Outputs:
+  # Database
+  DBEndpoint:
+    Description: PostgreSQL endpoint
+    Value: !GetAtt PostgresInstance.Endpoint.Address
+    Export:
+      Name: !Sub "volleyer-db-endpoint-${Environment}"
+
+  DBPort:
+    Description: PostgreSQL port
+    Value: !GetAtt PostgresInstance.Endpoint.Port
+    Export:
+      Name: !Sub "volleyer-db-port-${Environment}"
+
+  # Redis
+  RedisEndpoint:
+    Description: Redis endpoint
+    Value: !GetAtt RedisCluster.RedisEndpoint.Address
+    Export:
+      Name: !Sub "volleyer-redis-endpoint-${Environment}"
+
+  RedisPort:
+    Description: Redis port
+    Value: !GetAtt RedisCluster.RedisEndpoint.Port
+    Export:
+      Name: !Sub "volleyer-redis-port-${Environment}"
+
+  # Security Groups
+  LambdaSecurityGroupId:
+    Description: Security group for Lambda functions
+    Value: !GetAtt LambdaSecurityGroup.GroupId
+    Export:
+      Name: !Sub "volleyer-lambda-sg-${Environment}"
+
+  ECSSecurityGroupId:
+    Description: Security group for ECS tasks
+    Value: !GetAtt ECSSecurityGroup.GroupId
+    Export:
+      Name: !Sub "volleyer-ecs-sg-${Environment}"
+
+  # S3
+  ImagesBucket:
+    Description: S3 bucket for profile images
+    Value: !Ref ImagesBucket
+    Export:
+      Name: !Sub "volleyer-images-bucket-${Environment}"
+
+  SSMEndpointId:
+    Description: SSM VPC Endpoint ID
+    Value: !Ref SSMEndpoint
+    Export:
+      Name: !Sub "volleyer-ssm-endpoint-${Environment}"
+
+  KMSEndpointId:
+    Description: KMS VPC Endpoint ID
+    Value: !Ref KMSEndpoint
+    Export:
+      Name: !Sub "volleyer-kms-endpoint-${Environment}"

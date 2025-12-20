@@ -1,0 +1,381 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Unified API Gateway for Volleyer microservices with custom domain and API key authentication"
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    Description: Deployment environment (e.g., qa, prod)
+    AllowedValues:
+      - qa
+      - prod
+  DomainName:
+    Type: String
+    Default: api.volleyer.app
+    Description: Custom domain name for API Gateway
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for the custom domain (must be in same region for regional)
+    Default: "arn:aws:acm:eu-west-2:058264239816:certificate/your-cert-id"
+
+
+Resources:
+  # CloudWatch Logs Role for API Gateway
+  ApiGatewayCloudWatchLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ApiGatewayLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                  - logs:GetLogEvents
+                  - logs:FilterLogEvents
+                Resource: "*"
+
+  # API Gateway Account Settings
+  ApiGatewayAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt ApiGatewayCloudWatchLogsRole.Arn
+
+  # API Gateway
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "volleyer-api-gateway-${Environment}"
+      Description: "Unified API Gateway for Volleyer microservices"
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      BinaryMediaTypes:
+        - "*/*"  # Support for file uploads
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-api-gateway-${Environment}"
+
+  # API Key for frontend application
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: !Sub "volleyer-frontend-api-key-${Environment}"
+      Description: "API Key for Volleyer frontend application"
+      Enabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-frontend-api-key-${Environment}"
+
+  # Usage Plan
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      UsagePlanName: !Sub "volleyer-usage-plan-${Environment}"
+      Description: "Usage plan for Volleyer API"
+      Throttle:
+        BurstLimit: 2000
+        RateLimit: 1000
+      Quota:
+        Limit: 1000000
+        Period: DAY
+      ApiStages:
+        - ApiId: !Ref ApiGateway
+          Stage: !Ref ApiStage
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-usage-plan-${Environment}"
+
+  # Link API Key to Usage Plan
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+  # ==================== AUTH-SERVICE ROUTES ====================
+  # Auth Service Resource (/auth-service)
+  AuthServiceResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: auth-service
+
+  # Auth Service Proxy Resource (/auth-service/{proxy+})
+  AuthServiceProxyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ParentId: !Ref AuthServiceResource
+      PathPart: "{proxy+}"
+
+  # Auth Service ANY Method - Direct Lambda Integration
+  AuthServiceMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref AuthServiceProxyResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      RequestParameters:
+        method.request.path.proxy: true
+        method.request.header.Authorization: false
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthLambdaArn}/invocations"
+          - AuthLambdaArn:
+              Fn::ImportValue: !Sub "volleyer-auth-lambda-arn-${Environment}"
+        RequestParameters:
+          integration.request.path.proxy: method.request.path.proxy
+
+  # Lambda Permission for Auth Service
+  AuthServiceLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::ImportValue: !Sub "volleyer-auth-lambda-arn-${Environment}"
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*"
+
+  # CORS for Auth Service
+  AuthServiceCorsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref AuthServiceProxyResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ''
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+          ResponseModels:
+            application/json: Empty
+
+  # ==================== EVENTS-SERVICE ROUTES ====================
+  # Events Service Resource (/events-service)
+  EventsServiceResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: events-service
+
+  # Events Service Proxy Resource (/events-service/{proxy+})
+  EventsServiceProxyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ParentId: !Ref EventsServiceResource
+      PathPart: "{proxy+}"
+
+  # Events Service ANY Method - HTTP Proxy to ALB
+  EventsServiceMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref EventsServiceProxyResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      RequestParameters:
+        method.request.path.proxy: true
+        method.request.header.Authorization: false
+      Integration:
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: ANY
+        Uri: !Sub
+          - "http://${EventsALB}/{proxy}"
+          - EventsALB:
+              Fn::ImportValue: !Sub "volleyer-events-alb-dns-${Environment}"
+        RequestParameters:
+          integration.request.path.proxy: method.request.path.proxy
+          integration.request.header.Authorization: method.request.header.Authorization
+        ConnectionType: INTERNET
+        TimeoutInMillis: 29000
+
+  # CORS for Events Service
+  EventsServiceCorsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref EventsServiceProxyResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ''
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+          ResponseModels:
+            application/json: Empty
+
+  # ==================== DEPLOYMENT ====================
+  # API Gateway Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - AuthServiceMethod
+      - EventsServiceMethod
+      - AuthServiceCorsMethod
+      - EventsServiceCorsMethod
+    Properties:
+      RestApiId: !Ref ApiGateway
+      Description: !Sub "Deployment for ${Environment}"
+
+  # API Gateway Stage
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    DependsOn: ApiGatewayAccount
+    Properties:
+      RestApiId: !Ref ApiGateway
+      DeploymentId: !Ref ApiDeployment
+      StageName: !Ref Environment
+      Description: !Sub "Stage for ${Environment}"
+      Variables:
+        environment: !Ref Environment
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          DataTraceEnabled: true
+          MetricsEnabled: true
+          ThrottlingBurstLimit: 2000
+          ThrottlingRateLimit: 1000
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","responseLength":"$context.responseLength","responseTime":"$context.responseTime","apiKeyId":"$context.identity.apiKeyId"}'
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-api-stage-${Environment}"
+
+  # ==================== CUSTOM DOMAIN ====================
+  # Custom Domain Name
+  # Note: DNS will be managed via Cloudflare CNAME record
+  # CNAME: api.volleyer.app -> {ApiGatewayRegionalDomainName}
+  # Set Cloudflare proxy to "DNS Only" (Gray Cloud) to preserve SSL
+  ApiDomainName:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      DomainName: !Ref DomainName
+      RegionalCertificateArn: !Ref CertificateArn
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      SecurityPolicy: TLS_1_2
+      Tags:
+        - Key: Name
+          Value: !Sub "volleyer-api-domain-${Environment}"
+
+  # Base Path Mapping
+  ApiBasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      DomainName: !Ref ApiDomainName
+      RestApiId: !Ref ApiGateway
+      Stage: !Ref ApiStage
+
+
+  # ==================== LOGGING ====================
+  # CloudWatch Log Group for API Gateway Access Logs
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/volleyer-api-access-${Environment}"
+      RetentionInDays: 14
+
+Outputs:
+  # ==================== API GATEWAY OUTPUTS ====================
+  ApiGatewayId:
+    Description: API Gateway ID
+    Value: !Ref ApiGateway
+    Export:
+      Name: !Sub "volleyer-api-gateway-id-${Environment}"
+
+  ApiGatewayUrl:
+    Description: API Gateway URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Export:
+      Name: !Sub "volleyer-api-gateway-url-${Environment}"
+
+  ApiDomainUrl:
+    Description: Custom domain URL for API Gateway
+    Value: !Sub "https://${DomainName}"
+    Export:
+      Name: !Sub "volleyer-api-domain-url-${Environment}"
+
+  CloudflareCNAMETarget:
+    Description: Target for Cloudflare CNAME record (api.volleyer.app -> this value)
+    Value: !GetAtt ApiDomainName.RegionalDomainName
+    Export:
+      Name: !Sub "volleyer-cloudflare-cname-target-${Environment}"
+
+  # ==================== API KEY OUTPUTS ====================
+  ApiKeyId:
+    Description: API Key ID for frontend application
+    Value: !Ref ApiKey
+    Export:
+      Name: !Sub "volleyer-api-key-id-${Environment}"
+
+  # ==================== FRONTEND INTEGRATION INFO ====================
+  FrontendConfig:
+    Description: Frontend configuration for API Gateway
+    Value: !Sub |
+      {
+        "apiBaseUrl": "https://${DomainName}",
+        "apiKeyHeader": "X-API-Key",
+        "endpoints": {
+          "authService": "https://${DomainName}/auth-service",
+          "eventsService": "https://${DomainName}/events-service"
+        }
+      }
+    Export:
+      Name: !Sub "volleyer-frontend-config-${Environment}"

@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "prod"
+  },
+  {
+    "ParameterKey": "DBPassword",
+    "ParameterValue": "9^kKw0k&39^|!"
+  },
+  {
+    "ParameterKey": "VpcId",
+    "ParameterValue": "vpc-0c0b7415f50d3967c"
+  },
+  {
+    "ParameterKey": "DomainName",
+    "ParameterValue": "api.volleyer.app"
+  },
+  {
+    "ParameterKey": "CertificateArn",
+    "ParameterValue": "arn:aws:acm:eu-west-2:058264239816:certificate/7fdb48c8-bf9c-4074-9373-c700cde8d6dc"
+  }
+]

@@ -1,0 +1,417 @@
+version: "3.8"
+
+services:
+    postgres:
+        image: postgres:15-alpine
+        container_name: volleyer-postgres
+        environment:
+            POSTGRES_USER: volleyer_user
+            POSTGRES_PASSWORD: volleyer_password_dev
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+            - ./init:/docker-entrypoint-initdb.d
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U volleyer_user"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+        command: postgres -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4
+
+    pgadmin:
+        image: dpage/pgadmin4:latest
+        container_name: volleyer-pgadmin
+        environment:
+            PGADMIN_DEFAULT_EMAIL: admin@volleyer.com
+            PGADMIN_DEFAULT_PASSWORD: admin123
+        ports:
+            - "8080:80"
+        volumes:
+            - pgadmin_data:/var/lib/pgadmin
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            - postgres
+
+    redis:
+        image: redis:7-alpine
+        container_name: volleyer-redis
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis_data:/data
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 3
+        command: redis-server --appendonly yes
+
+    rabbitmq:
+        image: rabbitmq:3-management
+        container_name: volleyer-rabbitmq
+        ports:
+            - "5672:5672"   # AMQP
+            - "15672:15672" # Management UI
+        environment:
+            RABBITMQ_DEFAULT_USER: volleyer_user
+            RABBITMQ_DEFAULT_PASS: volleyer_password_dev
+        volumes:
+            - rabbitmq_data:/var/lib/rabbitmq
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 30s
+
+    debezium:
+        image: debezium/server:2.4
+        container_name: volleyer-debezium
+        depends_on:
+            postgres:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_healthy
+        volumes:
+            - ./debezium:/debezium/conf
+            - debezium_data:/debezium/data
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+
+    auth-service:
+        build:
+            context: ../../auth-service
+            dockerfile: Dockerfile.dev
+        container_name: volleyer-auth-dev
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - ASPNETCORE_URLS=http://+:5005
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+            - AWS_REGION=${AWS_REGION:-us-east-1}
+            - DOTNET_RUNNING_IN_CONTAINER=true
+        ports:
+            - "5005:5005" # HTTP
+            - "10000:10000" # Debugger
+        volumes:
+            - ../../auth-service:/app:cached
+            # Mask host obj/bin folders to prevent conflicts with container builds
+            - /app/Auth/obj
+            - /app/Auth/bin
+            - /app/Auth.Domain/obj
+            - /app/Auth.Domain/bin
+            - /app/Auth.Infrastructure/obj
+            - /app/Auth.Infrastructure/bin
+            - /app/Auth.Services/obj
+            - /app/Auth.Services/bin
+            - /app/Auth.Tests/obj
+            - /app/Auth.Tests/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Services/bin
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    events-service:
+        build:
+            context: ../../events-service
+            dockerfile: Dockerfile.dev
+        container_name: volleyer-events-dev
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - ASPNETCORE_URLS=http://+:5010
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+            - AWS_REGION=${AWS_REGION:-us-east-1}
+            - DOTNET_RUNNING_IN_CONTAINER=true
+        ports:
+            - "5010:5010" # HTTP
+            - "10001:10001" # Debugger
+        volumes:
+            - ../../events-service:/app:cached
+            # Mask host obj/bin folders to prevent conflicts with container builds
+            - /app/Events/obj
+            - /app/Events/bin
+            - /app/Events.Domain/obj
+            - /app/Events.Domain/bin
+            - /app/Events.Application/obj
+            - /app/Events.Application/bin
+            - /app/Events.Infrastructure/obj
+            - /app/Events.Infrastructure/bin
+            - /app/Events.Tests/obj
+            - /app/Events.Tests/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Tests/obj
+            - /app/shared/Shared.Tests/bin
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    profiles-service:
+        build:
+            context: ../../profiles-service
+            dockerfile: Dockerfile.dev
+        container_name: volleyer-profiles-dev
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - ASPNETCORE_URLS=http://+:5170
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+            - AWS_REGION=${AWS_REGION:-us-east-1}
+            - DOTNET_RUNNING_IN_CONTAINER=true
+        ports:
+            - "5170:5170" # HTTP
+            - "10002:10002" # Debugger
+        volumes:
+            - ../../profiles-service:/app:cached
+            # Mask host obj/bin folders to prevent conflicts with container builds
+            - /app/Profiles/obj
+            - /app/Profiles/bin
+            - /app/Profiles.Domain/obj
+            - /app/Profiles.Domain/bin
+            - /app/Profiles.Application/obj
+            - /app/Profiles.Application/bin
+            - /app/Profiles.Infrastructure/obj
+            - /app/Profiles.Infrastructure/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Tests/obj
+            - /app/shared/Shared.Tests/bin
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    clubs-service:
+        build:
+            context: ../../clubs-service
+            dockerfile: Dockerfile.dev
+        container_name: volleyer-clubs-dev
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - ASPNETCORE_URLS=http://+:5020
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+            - AWS_REGION=${AWS_REGION:-us-east-1}
+            - DOTNET_RUNNING_IN_CONTAINER=true
+        ports:
+            - "5020:5020" # HTTP
+            - "10005:10005" # Debugger
+        volumes:
+            - ../../clubs-service:/app:cached
+            # Mask host obj/bin folders to prevent conflicts with container builds
+            - /app/Clubs/obj
+            - /app/Clubs/bin
+            - /app/Clubs.Domain/obj
+            - /app/Clubs.Domain/bin
+            - /app/Clubs.Application/obj
+            - /app/Clubs.Application/bin
+            - /app/Clubs.Infrastructure/obj
+            - /app/Clubs.Infrastructure/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Tests/obj
+            - /app/shared/Shared.Tests/bin
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    messages-service:
+        build:
+            context: ../../messages-service
+            dockerfile: Dockerfile.dev
+        container_name: volleyer-messages-dev
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - ASPNETCORE_URLS=http://+:5180
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+            - AWS_REGION=${AWS_REGION:-us-east-1}
+            - DOTNET_RUNNING_IN_CONTAINER=true
+        ports:
+            - "5180:5180" # HTTP
+            - "10003:10003" # Debugger
+        volumes:
+            - ../../messages-service:/app:cached
+            # Mask host obj/bin folders to prevent conflicts with container builds
+            - /app/Messages/obj
+            - /app/Messages/bin
+            - /app/Messages.Domain/obj
+            - /app/Messages.Domain/bin
+            - /app/Messages.Application/obj
+            - /app/Messages.Application/bin
+            - /app/Messages.Infrastructure/obj
+            - /app/Messages.Infrastructure/bin
+            - /app/Messages.SocketServer/obj
+            - /app/Messages.SocketServer/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Tests/obj
+            - /app/shared/Shared.Tests/bin
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    notifications-service:
+        build:
+            context: ../../notifications-service
+            dockerfile: Dockerfile.dev
+        container_name: volleyer-notifications-dev
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - ASPNETCORE_URLS=http://+:5030
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+            - AWS_REGION=${AWS_REGION:-us-east-1}
+            - DOTNET_RUNNING_IN_CONTAINER=true
+        ports:
+            - "5030:5030" # HTTP
+            - "10006:10006" # Debugger
+        volumes:
+            - ../../notifications-service:/app:cached
+            # Mask host obj/bin folders to prevent conflicts with container builds
+            - /app/Notifications/obj
+            - /app/Notifications/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Tests/obj
+            - /app/shared/Shared.Tests/bin
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    nginx:
+        image: nginx:alpine
+        container_name: volleyer-nginx
+        ports:
+            - "8000:8000"
+        volumes:
+            - ../nginx/nginx.Development.conf:/etc/nginx/nginx.conf:ro
+            - nginx_logs:/var/log/nginx
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            - postgres
+            - auth-service
+            - events-service
+            - profiles-service
+            - clubs-service
+            - messages-service
+            - notifications-service
+
+volumes:
+    postgres_data:
+        driver: local
+    pgadmin_data:
+        driver: local
+    redis_data:
+        driver: local
+    rabbitmq_data:
+        driver: local
+    debezium_data:
+        driver: local
+    nginx_logs:
+        driver: local
+
+networks:
+    volleyer_network:
+        driver: bridge
