@@ -60,7 +60,7 @@ services:
         image: rabbitmq:3-management
         container_name: volleyer-rabbitmq
         ports:
-            - "5672:5672"   # AMQP
+            - "5672:5672" # AMQP
             - "15672:15672" # Management UI
         environment:
             RABBITMQ_DEFAULT_USER: volleyer_user
@@ -177,6 +177,10 @@ services:
             - /app/shared/Shared.DataAccess/bin
             - /app/shared/Shared.Logging/obj
             - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Microservices/bin
             - /app/shared/Shared.Services/obj
@@ -225,6 +229,10 @@ services:
             - /app/shared/Shared.DataAccess/bin
             - /app/shared/Shared.Logging/obj
             - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Microservices/bin
             - /app/shared/Shared.Services/obj
@@ -273,6 +281,10 @@ services:
             - /app/shared/Shared.DataAccess/bin
             - /app/shared/Shared.Logging/obj
             - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Microservices/bin
             - /app/shared/Shared.Services/obj
@@ -284,6 +296,8 @@ services:
         restart: unless-stopped
         depends_on:
             postgres:
+                condition: service_healthy
+            rabbitmq:
                 condition: service_healthy
 
     messages-service:
@@ -323,6 +337,10 @@ services:
             - /app/shared/Shared.DataAccess/bin
             - /app/shared/Shared.Logging/obj
             - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Microservices/bin
             - /app/shared/Shared.Services/obj
@@ -357,6 +375,12 @@ services:
             # Mask host obj/bin folders to prevent conflicts with container builds
             - /app/Notifications/obj
             - /app/Notifications/bin
+            - /app/Notifications.Domain/obj
+            - /app/Notifications.Domain/bin
+            - /app/Notifications.Application/obj
+            - /app/Notifications.Application/bin
+            - /app/Notifications.Infrastructure/obj
+            - /app/Notifications.Infrastructure/bin
             - /app/shared/Shared/obj
             - /app/shared/Shared/bin
             - /app/shared/Shared.Contracts/obj
@@ -365,6 +389,10 @@ services:
             - /app/shared/Shared.DataAccess/bin
             - /app/shared/Shared.Logging/obj
             - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Microservices/bin
             - /app/shared/Shared.Services/obj
@@ -376,6 +404,64 @@ services:
         restart: unless-stopped
         depends_on:
             postgres:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+
+    social-service:
+        build:
+            context: ../../social-service
+            dockerfile: Dockerfile.dev
+        container_name: volleyer-social-dev
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - ASPNETCORE_URLS=http://+:5040
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+            - AWS_REGION=${AWS_REGION:-us-east-1}
+            - DOTNET_RUNNING_IN_CONTAINER=true
+        ports:
+            - "5040:5040" # HTTP
+            - "10007:10007" # Debugger
+        volumes:
+            - ../../social-service:/app:cached
+            # Mask host obj/bin folders to prevent conflicts with container builds
+            - /app/Social/obj
+            - /app/Social/bin
+            - /app/Social.Domain/obj
+            - /app/Social.Domain/bin
+            - /app/Social.Application/obj
+            - /app/Social.Application/bin
+            - /app/Social.Infrastructure/obj
+            - /app/Social.Infrastructure/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Tests/obj
+            - /app/shared/Shared.Tests/bin
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
+            rabbitmq:
                 condition: service_healthy
 
     nginx:
@@ -397,6 +483,7 @@ services:
             - clubs-service
             - messages-service
             - notifications-service
+            - social-service
 
 volumes:
     postgres_data:

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🏐 Volleyer Droplet Setup Script"
+echo "🏐 Spike Droplet Setup Script"
 echo "================================"
 
 # Check if running as root
@@ -18,7 +18,7 @@ echo "📝 Please provide the following information:"
 read -p "GitHub Personal Access Token: " GITHUB_PAT 
 
 echo ""
-echo "🔧 Setting up Volleyer infrastructure..."
+echo "🔧 Setting up Spike infrastructure..."
 
 # Install Git if not present
 if ! command -v git &> /dev/null; then

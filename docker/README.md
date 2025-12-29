@@ -1,11 +1,11 @@
 # Docker Infrastructure Setup
 
-This directory contains Docker Compose configurations for running the Volleyer microservices.
+This directory contains Docker Compose configurations for running the Spike microservices.
 
 ## Prerequisites
 
-- Docker Desktop installed and running
-- AWS account with credentials (for S3 and SES services)
+-   Docker Desktop installed and running
+-   AWS account with credentials (for S3 and SES services)
 
 ## Development Setup
 
@@ -32,12 +32,14 @@ AWS_REGION=us-east-1
 ### 2. Required AWS Services
 
 The microservices use these AWS services:
-- **Amazon S3** - File storage (user avatars, event images)
-- **Amazon SES** - Email service (notifications, password resets)
+
+-   **Amazon S3** - File storage (user avatars, event images)
+-   **Amazon SES** - Email service (notifications, password resets)
 
 Ensure your AWS IAM user has permissions for:
-- `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`
-- `ses:SendEmail`, `ses:SendRawEmail`
+
+-   `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`
+-   `ses:SendEmail`, `ses:SendRawEmail`
 
 ### 3. Start Services
 
@@ -56,29 +58,29 @@ docker-compose -f docker-compose.Development.yml down
 
 ### Running in Development
 
-- **postgres** - PostgreSQL database (port 5432)
-- **pgadmin** - Database admin UI (port 8080)
-- **auth-service** - Authentication microservice (port 5005)
-- **nginx** - API Gateway (port 8000)
+-   **postgres** - PostgreSQL database (port 5432)
+-   **pgadmin** - Database admin UI (port 8080)
+-   **auth-service** - Authentication microservice (port 5005)
+-   **nginx** - API Gateway (port 8000)
 
 ### Commented Out (Run on Host)
 
-- **profiles-service** - User profiles (port 5170)
-- **messages-service** - Messaging/chat (port 5180)
+-   **profiles-service** - User profiles (port 5170)
+-   **messages-service** - Messaging/chat (port 5180)
 
 To enable these services, uncomment them in `docker-compose.Development.yml` and ensure their Dockerfiles exist.
 
 ## Accessing Services
 
-- **API Gateway**: http://localhost:8000
-  - Auth API: http://localhost:8000/auth/
-  - Events API: http://localhost:8000/events/
-  - Profile API: http://localhost:8000/profile/
-  - Message API: http://localhost:8000/message/
-  - Message Hub: ws://localhost:8000/message/hubs/
-- **PgAdmin**: http://localhost:8080
-  - Email: admin@volleyer.com
-  - Password: admin123
+-   **API Gateway**: http://localhost:8000
+    -   Auth API: http://localhost:8000/auth/
+    -   Events API: http://localhost:8000/events/
+    -   Profile API: http://localhost:8000/profile/
+    -   Message API: http://localhost:8000/message/
+    -   Message Hub: ws://localhost:8000/message/hubs/
+-   **PgAdmin**: http://localhost:8080
+    -   Email: admin@volleyer.com
+    -   Password: admin123
 
 ## Production Deployment
 
@@ -89,12 +91,13 @@ docker-compose -f docker-compose.Production.yml up -d
 ```
 
 Production requires these environment variables:
-- `DO_REGISTRY_NAME` - DigitalOcean registry name
-- `AUTH_AWS_ACCESS_KEY_ID` / `AUTH_AWS_SECRET_ACCESS_KEY`
-- `EVENTS_AWS_ACCESS_KEY_ID` / `EVENTS_AWS_SECRET_ACCESS_KEY`
-- `PROFILE_AWS_ACCESS_KEY_ID` / `PROFILE_AWS_SECRET_ACCESS_KEY`
-- `MESSAGE_AWS_ACCESS_KEY_ID` / `MESSAGE_AWS_SECRET_ACCESS_KEY`
-- `AWS_DEFAULT_REGION` / `AWS_REGION`
+
+-   `DO_REGISTRY_NAME` - DigitalOcean registry name
+-   `AUTH_AWS_ACCESS_KEY_ID` / `AUTH_AWS_SECRET_ACCESS_KEY`
+-   `EVENTS_AWS_ACCESS_KEY_ID` / `EVENTS_AWS_SECRET_ACCESS_KEY`
+-   `PROFILE_AWS_ACCESS_KEY_ID` / `PROFILE_AWS_SECRET_ACCESS_KEY`
+-   `MESSAGE_AWS_ACCESS_KEY_ID` / `MESSAGE_AWS_SECRET_ACCESS_KEY`
+-   `AWS_DEFAULT_REGION` / `AWS_REGION`
 
 ## Database Initialization
 

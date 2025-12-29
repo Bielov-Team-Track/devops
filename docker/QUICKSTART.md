@@ -1,13 +1,13 @@
 # Docker Development - Quick Start Guide
 
-Get all your Bielov Volleyer microservices running in Docker with hot reload and remote debugging in under 5 minutes.
+Get all your Bielov Spike microservices running in Docker with hot reload and remote debugging in under 5 minutes.
 
 ## Prerequisites
 
-- Docker Desktop installed and running
-- Docker Compose v2.22+ (for watch feature)
-- 8GB+ RAM allocated to Docker
-- VS Code or Visual Studio 2022
+-   Docker Desktop installed and running
+-   Docker Compose v2.22+ (for watch feature)
+-   8GB+ RAM allocated to Docker
+-   VS Code or Visual Studio 2022
 
 ## Quick Start
 
@@ -21,10 +21,11 @@ docker compose -f docker-compose.Development.yml watch
 ```
 
 This will start:
-- PostgreSQL (port 5432)
-- PgAdmin (http://localhost:8080)
-- 7 microservices with hot reload + debugging
-- Nginx reverse proxy (port 8000)
+
+-   PostgreSQL (port 5432)
+-   PgAdmin (http://localhost:8080)
+-   7 microservices with hot reload + debugging
+-   Nginx reverse proxy (port 8000)
 
 ### 2. Verify Services
 
@@ -40,11 +41,13 @@ curl http://localhost:5010/health  # events-service
 ### 3. Attach Debugger
 
 **VS Code:**
+
 1. Press F5
 2. Select "Attach to [Service Name]"
 3. Set breakpoints and debug
 
 **Visual Studio:**
+
 1. Debug → Attach to Process
 2. Connection: Docker (Linux Container)
 3. Select container and dotnet process
@@ -53,25 +56,27 @@ See [DEBUGGING.md](./DEBUGGING.md) for detailed instructions.
 
 ## Service URLs
 
-| Service | URL | Debugger Port |
-|---------|-----|---------------|
-| Auth | http://localhost:5005 | 10000 |
-| Events | http://localhost:5010 | 10001 |
-| Profiles | http://localhost:5170 | 10002 |
-| Messages | http://localhost:5180 | 10003 |
-| Messages WebSocket | http://localhost:5181 | 10004 |
-| Clubs | http://localhost:5020 | 10005 |
-| Notifications | http://localhost:5030 | 10006 |
-| PgAdmin | http://localhost:8080 | - |
-| Nginx Gateway | http://localhost:8000 | - |
+| Service            | URL                   | Debugger Port |
+| ------------------ | --------------------- | ------------- |
+| Auth               | http://localhost:5005 | 10000         |
+| Events             | http://localhost:5010 | 10001         |
+| Profiles           | http://localhost:5170 | 10002         |
+| Messages           | http://localhost:5180 | 10003         |
+| Messages WebSocket | http://localhost:5181 | 10004         |
+| Clubs              | http://localhost:5020 | 10005         |
+| Notifications      | http://localhost:5030 | 10006         |
+| PgAdmin            | http://localhost:8080 | -             |
+| Nginx Gateway      | http://localhost:8000 | -             |
 
 ## Database Access
 
 **PgAdmin UI:** http://localhost:8080
-- Email: `admin@volleyer.com`
-- Password: `admin123`
+
+-   Email: `admin@volleyer.com`
+-   Password: `admin123`
 
 **Direct Connection:**
+
 ```bash
 # Via psql
 docker exec -it volleyer-postgres psql -U volleyer_user -d volleyer_auth
@@ -83,9 +88,10 @@ Host=localhost;Port=5432;Database=volleyer_auth;Username=volleyer_user;Password=
 ## Hot Reload
 
 Just edit your code and save. `dotnet watch` will automatically:
-- Detect changes
-- Rebuild the project
-- Restart the service
+
+-   Detect changes
+-   Rebuild the project
+-   Restart the service
 
 No need to restart containers manually.
 
@@ -124,6 +130,7 @@ AWS_DEFAULT_REGION=us-east-1
 ## Troubleshooting
 
 **Services won't start?**
+
 ```bash
 # Check Docker is running
 docker ps
@@ -138,6 +145,7 @@ docker compose -f docker-compose.Development.yml watch
 ```
 
 **Can't attach debugger?**
+
 ```bash
 # Verify vsdbg is installed
 docker exec volleyer-auth-dev ls -la /vsdbg
@@ -147,11 +155,13 @@ docker exec volleyer-auth-dev ps aux
 ```
 
 **Hot reload not working?**
-- Check volume mounts: `docker inspect volleyer-auth-dev | grep Mounts -A 20`
-- Ensure files aren't in bin/ or obj/ (these are ignored)
-- Try restarting the service
+
+-   Check volume mounts: `docker inspect volleyer-auth-dev | grep Mounts -A 20`
+-   Ensure files aren't in bin/ or obj/ (these are ignored)
+-   Try restarting the service
 
 **Port conflicts?**
+
 ```bash
 # Find what's using the port
 netstat -ano | findstr :5005  # Windows
@@ -189,12 +199,12 @@ lsof -i :5005                 # Mac/Linux
 
 ## What's Configured
 
-- **Hot Reload**: `dotnet watch` running in each service
-- **Remote Debugging**: vsdbg installed on port 10000+
-- **Volume Mounts**: Source code synced for live editing
-- **Docker Watch**: Automatic file sync from host to container
-- **Health Checks**: PostgreSQL monitored for service startup
-- **Networking**: All services in shared bridge network
+-   **Hot Reload**: `dotnet watch` running in each service
+-   **Remote Debugging**: vsdbg installed on port 10000+
+-   **Volume Mounts**: Source code synced for live editing
+-   **Docker Watch**: Automatic file sync from host to container
+-   **Health Checks**: PostgreSQL monitored for service startup
+-   **Networking**: All services in shared bridge network
 
 ## Next Steps
 
