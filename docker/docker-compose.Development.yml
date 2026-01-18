@@ -23,22 +23,6 @@ services:
             start_period: 40s
         command: postgres -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4
 
-    pgadmin:
-        image: dpage/pgadmin4:latest
-        container_name: volleyer-pgadmin
-        environment:
-            PGADMIN_DEFAULT_EMAIL: admin@volleyer.com
-            PGADMIN_DEFAULT_PASSWORD: admin123
-        ports:
-            - "8080:80"
-        volumes:
-            - pgadmin_data:/var/lib/pgadmin
-        networks:
-            - volleyer_network
-        restart: unless-stopped
-        depends_on:
-            - postgres
-
     redis:
         image: redis:7-alpine
         container_name: volleyer-redis
@@ -94,7 +78,7 @@ services:
 
     auth-service:
         build:
-            context: ../../auth-service
+            context: ../../microservices/auth-service
             dockerfile: Dockerfile.dev
         container_name: volleyer-auth-dev
         environment:
@@ -109,7 +93,7 @@ services:
             - "5005:5005" # HTTP
             - "10000:10000" # Debugger
         volumes:
-            - ../../auth-service:/app:cached
+            - ../../microservices/auth-service:/app:cached
             # Mask host obj/bin folders to prevent conflicts with container builds
             - /app/Auth/obj
             - /app/Auth/bin
@@ -142,7 +126,7 @@ services:
 
     events-service:
         build:
-            context: ../../events-service
+            context: ../../microservices/events-service
             dockerfile: Dockerfile.dev
         container_name: volleyer-events-dev
         environment:
@@ -157,7 +141,7 @@ services:
             - "5010:5010" # HTTP
             - "10001:10001" # Debugger
         volumes:
-            - ../../events-service:/app:cached
+            - ../../microservices/events-service:/app:cached
             # Mask host obj/bin folders to prevent conflicts with container builds
             - /app/Events/obj
             - /app/Events/bin
@@ -196,7 +180,7 @@ services:
 
     profiles-service:
         build:
-            context: ../../profiles-service
+            context: ../../microservices/profiles-service
             dockerfile: Dockerfile.dev
         container_name: volleyer-profiles-dev
         environment:
@@ -211,7 +195,7 @@ services:
             - "5170:5170" # HTTP
             - "10002:10002" # Debugger
         volumes:
-            - ../../profiles-service:/app:cached
+            - ../../microservices/profiles-service:/app:cached
             # Mask host obj/bin folders to prevent conflicts with container builds
             - /app/Profiles/obj
             - /app/Profiles/bin
@@ -248,22 +232,22 @@ services:
 
     clubs-service:
         build:
-            context: ../../clubs-service
+            context: ../../microservices/clubs-service
             dockerfile: Dockerfile.dev
         container_name: volleyer-clubs-dev
         environment:
             - ASPNETCORE_ENVIRONMENT=Development
-            - ASPNETCORE_URLS=http://+:5020
             - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
             - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
             - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
             - AWS_REGION=${AWS_REGION:-us-east-1}
             - DOTNET_RUNNING_IN_CONTAINER=true
         ports:
+            - "5021:5021" # gRPC
             - "5020:5020" # HTTP
             - "10005:10005" # Debugger
         volumes:
-            - ../../clubs-service:/app:cached
+            - ../../microservices/clubs-service:/app:cached
             # Mask host obj/bin folders to prevent conflicts with container builds
             - /app/Clubs/obj
             - /app/Clubs/bin
@@ -302,7 +286,7 @@ services:
 
     messages-service:
         build:
-            context: ../../messages-service
+            context: ../../microservices/messages-service
             dockerfile: Dockerfile.dev
         container_name: volleyer-messages-dev
         environment:
@@ -317,7 +301,7 @@ services:
             - "5180:5180" # HTTP
             - "10003:10003" # Debugger
         volumes:
-            - ../../messages-service:/app:cached
+            - ../../microservices/messages-service:/app:cached
             # Mask host obj/bin folders to prevent conflicts with container builds
             - /app/Messages/obj
             - /app/Messages/bin
@@ -356,7 +340,7 @@ services:
 
     notifications-service:
         build:
-            context: ../../notifications-service
+            context: ../../microservices/notifications-service
             dockerfile: Dockerfile.dev
         container_name: volleyer-notifications-dev
         environment:
@@ -371,7 +355,7 @@ services:
             - "5030:5030" # HTTP
             - "10006:10006" # Debugger
         volumes:
-            - ../../notifications-service:/app:cached
+            - ../../microservices/notifications-service:/app:cached
             # Mask host obj/bin folders to prevent conflicts with container builds
             - /app/Notifications/obj
             - /app/Notifications/bin
@@ -412,7 +396,7 @@ services:
 
     social-service:
         build:
-            context: ../../social-service
+            context: ../../microservices/social-service
             dockerfile: Dockerfile.dev
         container_name: volleyer-social-dev
         environment:
@@ -427,7 +411,7 @@ services:
             - "5040:5040" # HTTP
             - "10007:10007" # Debugger
         volumes:
-            - ../../social-service:/app:cached
+            - ../../microservices/social-service:/app:cached
             # Mask host obj/bin folders to prevent conflicts with container builds
             - /app/Social/obj
             - /app/Social/bin
@@ -462,6 +446,8 @@ services:
             postgres:
                 condition: service_healthy
             rabbitmq:
+                condition: service_healthy
+            redis:
                 condition: service_healthy
 
     nginx:
