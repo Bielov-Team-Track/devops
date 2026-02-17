@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
     postgres:
         image: postgres:15-alpine
@@ -117,34 +115,7 @@ services:
             - "5005:5005" # HTTP
             - "10000:10000" # Debugger
         volumes:
-            - ../../microservices/auth-service:/app:cached
-            # Mask host obj/bin folders to prevent conflicts with container builds
-            - /app/Auth/obj
-            - /app/Auth/bin
-            - /app/Auth.Domain/obj
-            - /app/Auth.Domain/bin
-            - /app/Auth.Infrastructure/obj
-            - /app/Auth.Infrastructure/bin
-            - /app/Auth.Services/obj
-            - /app/Auth.Services/bin
-            - /app/Auth.Tests/obj
-            - /app/Auth.Tests/bin
-            - /app/shared/Shared/obj
-            - /app/shared/Shared/bin
-            - /app/shared/Shared.Messaging/obj
-            - /app/shared/Shared.Messaging/bin
-            - /app/shared/Shared.Messaging.Contracts/obj
-            - /app/shared/Shared.Messaging.Contracts/bin
-            - /app/shared/Shared.Contracts/obj
-            - /app/shared/Shared.Contracts/bin
-            - /app/shared/Shared.DataAccess/obj
-            - /app/shared/Shared.DataAccess/bin
-            - /app/shared/Shared.Logging/obj
-            - /app/shared/Shared.Logging/bin
-            - /app/shared/Shared.Microservices/obj
-            - /app/shared/Shared.Microservices/bin
-            - /app/shared/Shared.Services/obj
-            - /app/shared/Shared.Services/bin
+            - ../../microservices/auth-service:/app
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -159,7 +130,6 @@ services:
         container_name: volleyer-events-dev
         environment:
             - ASPNETCORE_ENVIRONMENT=Development
-            - ASPNETCORE_URLS=http://+:5010
             - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
             - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
             - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
@@ -167,38 +137,10 @@ services:
             - DOTNET_RUNNING_IN_CONTAINER=true
         ports:
             - "5010:5010" # HTTP
+            - "5011:5011" # gRPC
             - "10001:10001" # Debugger
         volumes:
-            - ../../microservices/events-service:/app:cached
-            # Mask host obj/bin folders to prevent conflicts with container builds
-            - /app/Events/obj
-            - /app/Events/bin
-            - /app/Events.Domain/obj
-            - /app/Events.Domain/bin
-            - /app/Events.Application/obj
-            - /app/Events.Application/bin
-            - /app/Events.Infrastructure/obj
-            - /app/Events.Infrastructure/bin
-            - /app/Events.Tests/obj
-            - /app/Events.Tests/bin
-            - /app/shared/Shared/obj
-            - /app/shared/Shared/bin
-            - /app/shared/Shared.Contracts/obj
-            - /app/shared/Shared.Contracts/bin
-            - /app/shared/Shared.DataAccess/obj
-            - /app/shared/Shared.DataAccess/bin
-            - /app/shared/Shared.Logging/obj
-            - /app/shared/Shared.Logging/bin
-            - /app/shared/Shared.Messaging/obj
-            - /app/shared/Shared.Messaging/bin
-            - /app/shared/Shared.Messaging.Contracts/obj
-            - /app/shared/Shared.Messaging.Contracts/bin
-            - /app/shared/Shared.Microservices/obj
-            - /app/shared/Shared.Microservices/bin
-            - /app/shared/Shared.Services/obj
-            - /app/shared/Shared.Services/bin
-            - /app/shared/Shared.Tests/obj
-            - /app/shared/Shared.Tests/bin
+            - ../../microservices/events-service:/app
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -223,34 +165,7 @@ services:
             - "5170:5170" # HTTP
             - "10002:10002" # Debugger
         volumes:
-            - ../../microservices/profiles-service:/app:cached
-            # Mask host obj/bin folders to prevent conflicts with container builds
-            - /app/Profiles/obj
-            - /app/Profiles/bin
-            - /app/Profiles.Domain/obj
-            - /app/Profiles.Domain/bin
-            - /app/Profiles.Application/obj
-            - /app/Profiles.Application/bin
-            - /app/Profiles.Infrastructure/obj
-            - /app/Profiles.Infrastructure/bin
-            - /app/shared/Shared/obj
-            - /app/shared/Shared/bin
-            - /app/shared/Shared.Contracts/obj
-            - /app/shared/Shared.Contracts/bin
-            - /app/shared/Shared.DataAccess/obj
-            - /app/shared/Shared.DataAccess/bin
-            - /app/shared/Shared.Logging/obj
-            - /app/shared/Shared.Logging/bin
-            - /app/shared/Shared.Messaging/obj
-            - /app/shared/Shared.Messaging/bin
-            - /app/shared/Shared.Messaging.Contracts/obj
-            - /app/shared/Shared.Messaging.Contracts/bin
-            - /app/shared/Shared.Microservices/obj
-            - /app/shared/Shared.Microservices/bin
-            - /app/shared/Shared.Services/obj
-            - /app/shared/Shared.Services/bin
-            - /app/shared/Shared.Tests/obj
-            - /app/shared/Shared.Tests/bin
+            - ../../microservices/profiles-service:/app
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -275,34 +190,7 @@ services:
             - "5020:5020" # HTTP
             - "10005:10005" # Debugger
         volumes:
-            - ../../microservices/clubs-service:/app:cached
-            # Mask host obj/bin folders to prevent conflicts with container builds
-            - /app/Clubs/obj
-            - /app/Clubs/bin
-            - /app/Clubs.Domain/obj
-            - /app/Clubs.Domain/bin
-            - /app/Clubs.Application/obj
-            - /app/Clubs.Application/bin
-            - /app/Clubs.Infrastructure/obj
-            - /app/Clubs.Infrastructure/bin
-            - /app/shared/Shared/obj
-            - /app/shared/Shared/bin
-            - /app/shared/Shared.Contracts/obj
-            - /app/shared/Shared.Contracts/bin
-            - /app/shared/Shared.DataAccess/obj
-            - /app/shared/Shared.DataAccess/bin
-            - /app/shared/Shared.Logging/obj
-            - /app/shared/Shared.Logging/bin
-            - /app/shared/Shared.Messaging/obj
-            - /app/shared/Shared.Messaging/bin
-            - /app/shared/Shared.Messaging.Contracts/obj
-            - /app/shared/Shared.Messaging.Contracts/bin
-            - /app/shared/Shared.Microservices/obj
-            - /app/shared/Shared.Microservices/bin
-            - /app/shared/Shared.Services/obj
-            - /app/shared/Shared.Services/bin
-            - /app/shared/Shared.Tests/obj
-            - /app/shared/Shared.Tests/bin
+            - ../../microservices/clubs-service:/app
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -329,36 +217,7 @@ services:
             - "5180:5180" # HTTP
             - "10003:10003" # Debugger
         volumes:
-            - ../../microservices/messages-service:/app:cached
-            # Mask host obj/bin folders to prevent conflicts with container builds
-            - /app/Messages/obj
-            - /app/Messages/bin
-            - /app/Messages.Domain/obj
-            - /app/Messages.Domain/bin
-            - /app/Messages.Application/obj
-            - /app/Messages.Application/bin
-            - /app/Messages.Infrastructure/obj
-            - /app/Messages.Infrastructure/bin
-            - /app/Messages.SocketServer/obj
-            - /app/Messages.SocketServer/bin
-            - /app/shared/Shared/obj
-            - /app/shared/Shared/bin
-            - /app/shared/Shared.Contracts/obj
-            - /app/shared/Shared.Contracts/bin
-            - /app/shared/Shared.DataAccess/obj
-            - /app/shared/Shared.DataAccess/bin
-            - /app/shared/Shared.Logging/obj
-            - /app/shared/Shared.Logging/bin
-            - /app/shared/Shared.Messaging/obj
-            - /app/shared/Shared.Messaging/bin
-            - /app/shared/Shared.Messaging.Contracts/obj
-            - /app/shared/Shared.Messaging.Contracts/bin
-            - /app/shared/Shared.Microservices/obj
-            - /app/shared/Shared.Microservices/bin
-            - /app/shared/Shared.Services/obj
-            - /app/shared/Shared.Services/bin
-            - /app/shared/Shared.Tests/obj
-            - /app/shared/Shared.Tests/bin
+            - ../../microservices/messages-service:/app
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -383,34 +242,7 @@ services:
             - "5030:5030" # HTTP
             - "10006:10006" # Debugger
         volumes:
-            - ../../microservices/notifications-service:/app:cached
-            # Mask host obj/bin folders to prevent conflicts with container builds
-            - /app/Notifications/obj
-            - /app/Notifications/bin
-            - /app/Notifications.Domain/obj
-            - /app/Notifications.Domain/bin
-            - /app/Notifications.Application/obj
-            - /app/Notifications.Application/bin
-            - /app/Notifications.Infrastructure/obj
-            - /app/Notifications.Infrastructure/bin
-            - /app/shared/Shared/obj
-            - /app/shared/Shared/bin
-            - /app/shared/Shared.Contracts/obj
-            - /app/shared/Shared.Contracts/bin
-            - /app/shared/Shared.DataAccess/obj
-            - /app/shared/Shared.DataAccess/bin
-            - /app/shared/Shared.Logging/obj
-            - /app/shared/Shared.Logging/bin
-            - /app/shared/Shared.Messaging/obj
-            - /app/shared/Shared.Messaging/bin
-            - /app/shared/Shared.Messaging.Contracts/obj
-            - /app/shared/Shared.Messaging.Contracts/bin
-            - /app/shared/Shared.Microservices/obj
-            - /app/shared/Shared.Microservices/bin
-            - /app/shared/Shared.Services/obj
-            - /app/shared/Shared.Services/bin
-            - /app/shared/Shared.Tests/obj
-            - /app/shared/Shared.Tests/bin
+            - ../../microservices/notifications-service:/app
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -439,34 +271,7 @@ services:
             - "5040:5040" # HTTP
             - "10007:10007" # Debugger
         volumes:
-            - ../../microservices/social-service:/app:cached
-            # Mask host obj/bin folders to prevent conflicts with container builds
-            - /app/Social/obj
-            - /app/Social/bin
-            - /app/Social.Domain/obj
-            - /app/Social.Domain/bin
-            - /app/Social.Application/obj
-            - /app/Social.Application/bin
-            - /app/Social.Infrastructure/obj
-            - /app/Social.Infrastructure/bin
-            - /app/shared/Shared/obj
-            - /app/shared/Shared/bin
-            - /app/shared/Shared.Contracts/obj
-            - /app/shared/Shared.Contracts/bin
-            - /app/shared/Shared.DataAccess/obj
-            - /app/shared/Shared.DataAccess/bin
-            - /app/shared/Shared.Logging/obj
-            - /app/shared/Shared.Logging/bin
-            - /app/shared/Shared.Messaging/obj
-            - /app/shared/Shared.Messaging/bin
-            - /app/shared/Shared.Messaging.Contracts/obj
-            - /app/shared/Shared.Messaging.Contracts/bin
-            - /app/shared/Shared.Microservices/obj
-            - /app/shared/Shared.Microservices/bin
-            - /app/shared/Shared.Services/obj
-            - /app/shared/Shared.Services/bin
-            - /app/shared/Shared.Tests/obj
-            - /app/shared/Shared.Tests/bin
+            - ../../microservices/social-service:/app
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -476,6 +281,60 @@ services:
             rabbitmq:
                 condition: service_healthy
             redis:
+                condition: service_healthy
+
+    coaching-service:
+        build:
+            context: ../../microservices/coaching-service
+            dockerfile: Dockerfile.dev
+        container_name: volleyer-coaching-dev
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+            - AWS_REGION=${AWS_REGION:-us-east-1}
+            - DOTNET_RUNNING_IN_CONTAINER=true
+        ports:
+            - "5060:5060" # HTTP
+            - "5061:5061" # gRPC
+            - "10009:10009" # Debugger
+        volumes:
+            - ../../microservices/coaching-service:/app
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_healthy
+
+    payments-service:
+        build:
+            context: ../../microservices/payments-service
+            dockerfile: Dockerfile.dev
+        container_name: volleyer-payments-dev
+        environment:
+            - ASPNETCORE_ENVIRONMENT=Development
+            - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+            - AWS_REGION=${AWS_REGION:-us-east-1}
+            - DOTNET_RUNNING_IN_CONTAINER=true
+        ports:
+            - "5051:5051" # gRPC
+            - "5050:5050" # HTTP
+            - "10008:10008" # Debugger
+        volumes:
+            - ../../microservices/payments-service:/app
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        depends_on:
+            postgres:
+                condition: service_healthy
+            rabbitmq:
                 condition: service_healthy
 
     nginx:
@@ -498,11 +357,11 @@ services:
             - messages-service
             - notifications-service
             - social-service
+            - payments-service
+            - coaching-service
 
 volumes:
     postgres_data:
-        driver: local
-    pgadmin_data:
         driver: local
     redis_data:
         driver: local
