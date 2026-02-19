@@ -62,7 +62,7 @@ services:
         condition: service_healthy
 
   auth-service:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-auth-service:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-auth-service:${AUTH_SERVICE_TAG:-main}
     networks:
       - volleyer-network
     depends_on:
@@ -70,7 +70,7 @@ services:
         condition: service_healthy
 
   events-service:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-events-service:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-events-service:${EVENTS_SERVICE_TAG:-main}
     networks:
       - volleyer-network
     depends_on:
@@ -78,7 +78,7 @@ services:
         condition: service_healthy
 
   clubs-service:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-clubs-service:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-clubs-service:${CLUBS_SERVICE_TAG:-main}
     networks:
       - volleyer-network
     depends_on:
@@ -88,7 +88,7 @@ services:
         condition: service_healthy
 
   profiles-service:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-profiles-service:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-profiles-service:${PROFILES_SERVICE_TAG:-main}
     networks:
       - volleyer-network
     depends_on:
@@ -96,7 +96,7 @@ services:
         condition: service_healthy
 
   messages-service:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-messages-service:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-messages-service:${MESSAGES_SERVICE_TAG:-main}
     networks:
       - volleyer-network
     depends_on:
@@ -104,7 +104,7 @@ services:
         condition: service_healthy
 
   notifications-service:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-notifications-service:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-notifications-service:${NOTIFICATIONS_SERVICE_TAG:-main}
     networks:
       - volleyer-network
     depends_on:
@@ -116,7 +116,7 @@ services:
         condition: service_healthy
 
   social-service:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-social-service:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-social-service:${SOCIAL_SERVICE_TAG:-main}
     networks:
       - volleyer-network
     depends_on:
@@ -128,7 +128,7 @@ services:
         condition: service_healthy
 
   coaching-service:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-coaching-service:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-coaching-service:${COACHING_SERVICE_TAG:-main}
     networks:
       - volleyer-network
     depends_on:
@@ -138,7 +138,7 @@ services:
         condition: service_healthy
 
   payments-service:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-payments-service:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-payments-service:${PAYMENTS_SERVICE_TAG:-main}
     networks:
       - volleyer-network
     depends_on:
@@ -148,7 +148,7 @@ services:
         condition: service_healthy
 
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-owner}/volleyer-frontend:${TAG:?TAG variable must be set}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-frontend:${FRONTEND_TAG:-main}
     networks:
       - volleyer-network
 

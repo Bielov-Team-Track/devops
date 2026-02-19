@@ -1,0 +1,228 @@
+name: Rollback Service
+
+on:
+  workflow_dispatch:
+    inputs:
+      service-name:
+        description: 'Service name (e.g., auth-service, frontend)'
+        required: true
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      image-tag:
+        description: 'Git SHA to roll back to'
+        required: true
+        type: string
+      deploy-path:
+        description: 'Path on target server'
+        required: false
+        type: string
+        default: '/opt/volleyspike'
+      health-check-path:
+        description: 'Override health check URL path (default: derived from service name)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  rollback:
+    name: Rollback ${{ inputs.service-name }} on ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout devops repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Validate image tag
+        env:
+          IMAGE_TAG: ${{ inputs.image-tag }}
+        run: |
+          if ! echo "$IMAGE_TAG" | grep -qE '^[a-f0-9]{7,40}$'; then
+            echo "::error::Invalid image tag: must be a hex SHA (7-40 characters)"
+            exit 1
+          fi
+
+      - name: Derive health check path
+        id: health
+        env:
+          SERVICE_NAME: ${{ inputs.service-name }}
+          HEALTH_CHECK_PATH_INPUT: ${{ inputs.health-check-path }}
+        run: |
+          if [ -n "$HEALTH_CHECK_PATH_INPUT" ]; then
+            echo "path=$HEALTH_CHECK_PATH_INPUT" >> "$GITHUB_OUTPUT"
+          else
+            # Derive from service name: auth-service -> /auth/health
+            PREFIX="${SERVICE_NAME%-service}"
+            echo "path=/${PREFIX}/health" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send rollback notification
+        uses: ./actions/telegram-notify
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          status: rollback
+          environment: "${{ inputs.environment }} (${{ inputs.service-name }})"
+
+      - name: Execute rollback (pull, restart, health check, update tags)
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        env:
+          TAG: ${{ inputs.image-tag }}
+          SERVICE_NAME: ${{ inputs.service-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          DEPLOY_PATH: ${{ inputs.deploy-path }}
+          HEALTH_CHECK_PATH: ${{ steps.health.outputs.path }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          command_timeout: 30m
+          envs: TAG,SERVICE_NAME,ENVIRONMENT,DEPLOY_PATH,HEALTH_CHECK_PATH,GITHUB_REPOSITORY_OWNER
+          script: |
+            set -euo pipefail
+
+            cd "$DEPLOY_PATH"
+
+            # Validate inputs to prevent shell injection
+            if ! echo "$SERVICE_NAME" | grep -qE '^[a-z][a-z0-9-]{1,30}$'; then
+              echo "ERROR: Invalid SERVICE_NAME: $SERVICE_NAME"
+              exit 1
+            fi
+            if ! echo "$TAG" | grep -qE '^[a-f0-9]{7,40}$'; then
+              echo "ERROR: Invalid TAG: $TAG"
+              exit 1
+            fi
+
+            # Validate environment (allowlist)
+            if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "production" ]; then
+              echo "ERROR: Invalid ENVIRONMENT: $ENVIRONMENT (must be 'staging' or 'production')"
+              exit 1
+            fi
+
+            # Validate DEPLOY_PATH (allowlist)
+            case "$DEPLOY_PATH" in
+              /opt/volleyspike) ;;
+              *) echo "ERROR: Invalid DEPLOY_PATH: $DEPLOY_PATH"; exit 1 ;;
+            esac
+
+            # Validate HEALTH_CHECK_PATH
+            if ! echo "$HEALTH_CHECK_PATH" | grep -qE '^/[a-z0-9/-]{1,50}$'; then
+              echo "ERROR: Invalid HEALTH_CHECK_PATH: $HEALTH_CHECK_PATH"
+              exit 1
+            fi
+
+            # Construct COMPOSE_FILES from validated environment
+            COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
+            if [ "$ENVIRONMENT" = "staging" ]; then
+              COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.rpi.yml"
+            fi
+
+            LOCK_FILE="/opt/volleyspike/.deploy.lock"
+            TAG_VAR=$(echo "$SERVICE_NAME" | tr '-' '_' | tr '[:lower:]' '[:upper:]')_TAG
+
+            # --- Phase 1: Acquire lock, read tags, pull image, restart service, release lock ---
+            (
+              flock -x 200 || { echo "ERROR: Could not acquire deploy lock"; exit 1; }
+
+              # Load current tags safely
+              if [ -f "$DEPLOY_PATH/.env.tags" ]; then
+                while IFS='=' read -r key value; do
+                  [ -z "$key" ] && continue
+                  case "$key" in \#*) continue ;; esac
+                  if ! echo "$key" | grep -qE '^[A-Z_]+$'; then
+                    echo "WARNING: Skipping invalid key: $key"
+                    continue
+                  fi
+                  if ! echo "$value" | grep -qE '^[a-zA-Z0-9._-]+$'; then
+                    echo "WARNING: Skipping invalid value for $key"
+                    continue
+                  fi
+                  export "$key=$value"
+                done < "$DEPLOY_PATH/.env.tags"
+              fi
+
+              # Override this service's tag with the rollback target
+              export "$TAG_VAR=$TAG"
+
+              # Pull and restart only the target service
+              docker compose $COMPOSE_FILES pull "$SERVICE_NAME" 200>&-
+              docker compose $COMPOSE_FILES up -d --no-deps "$SERVICE_NAME" 200>&-
+            ) 200>"$LOCK_FILE"
+
+            # --- Phase 2: Health check OUTSIDE the lock ---
+            HEALTH_CHECK_OK="false"
+            HEALTH_URL="http://localhost:8000${HEALTH_CHECK_PATH}"
+            MAX_RETRIES=30
+            RETRY_INTERVAL=5
+
+            echo "Starting health check: $HEALTH_URL (max ${MAX_RETRIES} attempts, ${RETRY_INTERVAL}s interval)"
+            for i in $(seq 1 "$MAX_RETRIES"); do
+              if curl -sf --max-time 5 "$HEALTH_URL" > /dev/null 2>&1; then
+                echo "Health check passed on attempt $i"
+                HEALTH_CHECK_OK="true"
+                break
+              fi
+              echo "Health check attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_INTERVAL}s..."
+              sleep "$RETRY_INTERVAL"
+            done
+
+            # --- Phase 3: Re-acquire lock, update .env.tags, release lock ---
+            if [ "$HEALTH_CHECK_OK" = "true" ]; then
+              (
+                flock -x 200 || { echo "ERROR: Could not acquire deploy lock"; exit 1; }
+
+                if grep -q "^${TAG_VAR}=" "$DEPLOY_PATH/.env.tags" 2>/dev/null; then
+                  sed -i "s|^${TAG_VAR}=.*|${TAG_VAR}=${TAG}|" "$DEPLOY_PATH/.env.tags"
+                else
+                  echo "${TAG_VAR}=${TAG}" >> "$DEPLOY_PATH/.env.tags"
+                fi
+              ) 200>"$LOCK_FILE"
+              echo "Rollback successful: $SERVICE_NAME reverted to $TAG"
+            else
+              echo "ERROR: Health check failed for $SERVICE_NAME after $MAX_RETRIES attempts."
+              echo "Rolling back $SERVICE_NAME to previous image..."
+
+              # Re-acquire lock, read OLD tags from .env.tags (which was NOT updated),
+              # and restore the previous container image
+              (
+                flock -x 200 || { echo "ERROR: Could not acquire deploy lock for rollback"; exit 1; }
+
+                if [ -f "$DEPLOY_PATH/.env.tags" ]; then
+                  while IFS='=' read -r key value; do
+                    [ -z "$key" ] && continue
+                    case "$key" in \#*) continue ;; esac
+                    echo "$key" | grep -qE '^[A-Z_]+$' || continue
+                    echo "$value" | grep -qE '^[a-zA-Z0-9._-]+$' || continue
+                    export "$key=$value"
+                  done < "$DEPLOY_PATH/.env.tags"
+                fi
+
+                docker compose $COMPOSE_FILES pull "$SERVICE_NAME" 200>&-
+                docker compose $COMPOSE_FILES up -d --no-deps "$SERVICE_NAME" 200>&-
+              ) 200>"$LOCK_FILE"
+
+              echo "ERROR: Restored $SERVICE_NAME to pre-rollback state. Rollback failed."
+              exit 1
+            fi
+
+      - name: Notify rollback result
+        if: always()
+        uses: ./actions/telegram-notify
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          status: ${{ job.status == 'success' && 'deploy-success' || 'deploy-failure' }}
+          environment: "${{ inputs.environment }} (rollback ${{ inputs.service-name }} to ${{ inputs.image-tag }})"
