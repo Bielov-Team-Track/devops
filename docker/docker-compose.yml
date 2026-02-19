@@ -49,7 +49,7 @@ services:
       start_period: 30s
 
   debezium:
-    image: debezium/server:2.7
+    image: debezium/server:2.4
     volumes:
       - ./debezium:/debezium/conf
       - debezium_data:/debezium/data

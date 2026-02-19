@@ -337,7 +337,7 @@ jobs:
 
             # --- Phase 2: Health check OUTSIDE the lock ---
             HEALTH_CHECK_OK="false"
-            HEALTH_URL="http://localhost:8000${HEALTH_CHECK_PATH}"
+            HEALTH_URL="http://localhost:80${HEALTH_CHECK_PATH}"
             MAX_RETRIES=30
             RETRY_INTERVAL=5
 
