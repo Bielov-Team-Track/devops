@@ -88,7 +88,7 @@ jobs:
 
       - name: Upload test results
         if: inputs.run-tests && always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: test-results-${{ inputs.service-name }}
           path: ${{ inputs.service-path }}/**/test-results.trx
@@ -115,7 +115,7 @@ jobs:
 
       - name: Upload migration bundle
         if: inputs.build-migration-bundle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: migration-bundle-${{ inputs.service-name }}
           path: |
