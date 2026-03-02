@@ -1,0 +1,143 @@
+# Staging Caddyfile — no Cloudflare trusted proxy config (direct access from private network)
+{
+    auto_https off
+    servers {
+        client_ip_headers X-Forwarded-For
+        read_header_timeout 10s
+    }
+}
+
+:80 {
+    request_body {
+        max_size 10MB
+    }
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "0"
+        Referrer-Policy strict-origin-when-cross-origin
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # TODO: Rate limiting for /auth/* endpoints.
+    # Caddy's rate_limit module is not included in the standard binary and requires a custom build.
+    # As an interim measure, use Cloudflare rate limiting rules for authentication endpoints.
+    # When a custom Caddy build is feasible, add rate_limit directives here for /auth/* routes.
+
+    # SignalR WebSocket hubs (more specific paths, matched before generic service routes)
+    # Using `handle` + `uri strip_prefix` instead of `handle_path` to strip only the
+    # service prefix while preserving `/hubs/...` in the forwarded path.
+    #
+    # Currently active SignalR hubs: events, messages, notifications
+    # Pre-provisioned for future use: profiles, social, payments
+    handle /events/hubs/* {
+        uri strip_prefix /events
+        reverse_proxy events-service:5010 {
+            flush_interval -1
+            transport http {
+                read_timeout 24h
+                write_timeout 24h
+            }
+        }
+    }
+    handle /messages/hubs/* {
+        uri strip_prefix /messages
+        reverse_proxy messages-service:5180 {
+            flush_interval -1
+            transport http {
+                read_timeout 24h
+                write_timeout 24h
+            }
+        }
+    }
+    handle /notifications/hubs/* {
+        uri strip_prefix /notifications
+        reverse_proxy notifications-service:5030 {
+            flush_interval -1
+            transport http {
+                read_timeout 24h
+                write_timeout 24h
+            }
+        }
+    }
+    handle /profiles/hubs/* {
+        uri strip_prefix /profiles
+        reverse_proxy profiles-service:5170 {
+            flush_interval -1
+            transport http {
+                read_timeout 24h
+                write_timeout 24h
+            }
+        }
+    }
+    handle /social/hubs/* {
+        uri strip_prefix /social
+        reverse_proxy social-service:5040 {
+            flush_interval -1
+            transport http {
+                read_timeout 24h
+                write_timeout 24h
+            }
+        }
+    }
+    handle /payments/hubs/* {
+        uri strip_prefix /payments
+        reverse_proxy payments-service:5050 {
+            flush_interval -1
+            transport http {
+                read_timeout 24h
+                write_timeout 24h
+            }
+        }
+    }
+    handle /coaching/hubs/evaluation* {
+        uri strip_prefix /coaching
+        reverse_proxy coaching-service:5060 {
+            flush_interval -1
+            transport http {
+                read_timeout 24h
+                write_timeout 24h
+            }
+        }
+    }
+
+    # REST API routes
+    handle_path /auth/* {
+        reverse_proxy auth-service:5005
+    }
+    handle_path /events/* {
+        reverse_proxy events-service:5010
+    }
+    handle_path /clubs/* {
+        reverse_proxy clubs-service:5020
+    }
+    handle_path /profiles/* {
+        reverse_proxy profiles-service:5170
+    }
+    handle_path /messages/* {
+        reverse_proxy messages-service:5180
+    }
+    handle_path /notifications/* {
+        reverse_proxy notifications-service:5030
+    }
+    handle_path /social/* {
+        reverse_proxy social-service:5040
+    }
+    handle_path /coaching/* {
+        reverse_proxy coaching-service:5060
+    }
+    handle_path /payments/* {
+        reverse_proxy payments-service:5050
+    }
+
+    # No frontend on this server (deployed on Vercel)
+    handle {
+        respond "Not Found" 404
+    }
+
+    encode zstd gzip {
+        minimum_length 256
+    }
+}
