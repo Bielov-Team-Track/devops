@@ -171,16 +171,24 @@ jobs:
         env:
           DEPLOY_PATH: ${{ inputs.deploy-path }}
           SERVICE_NAME: ${{ inputs.service-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           fingerprint: ${{ secrets.SSH_FINGERPRINT }}
           command_timeout: 30m
-          envs: DEPLOY_PATH,SERVICE_NAME
+          envs: DEPLOY_PATH,SERVICE_NAME,ENVIRONMENT
           script: |
             set -euo pipefail
             ARCH=$(uname -m)
+
+            # Map environment name to .NET environment
+            if [ "$ENVIRONMENT" = "staging" ]; then
+              DOTNET_ENVIRONMENT="Staging"
+            else
+              DOTNET_ENVIRONMENT="Production"
+            fi
 
             # Load DB connection strings from env files
             for envfile in "$DEPLOY_PATH"/.env.*; do
@@ -225,8 +233,8 @@ jobs:
             echo "=== Running migration: efbundle-$SERVICE_NAME ==="
 
             if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-              docker run --platform linux/amd64 --rm \
-                -e DOTNET_ENVIRONMENT=Production \
+              docker run --platform linux/amd64 --rm --network host \
+                -e DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT \
                 -e "ConnectionStrings__DefaultConnection=$CONN_STRING" \
                 -v "$DEPLOY_PATH/migrations:/migrations" \
                 --entrypoint "/migrations/efbundle-$SERVICE_NAME" \
@@ -234,7 +242,7 @@ jobs:
             else
               env -i \
                 PATH="/usr/local/bin:/usr/bin:/bin" \
-                DOTNET_ENVIRONMENT=Production \
+                DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT \
                 "ConnectionStrings__DefaultConnection=$CONN_STRING" \
                 "$BUNDLE"
             fi
@@ -293,10 +301,7 @@ jobs:
             fi
 
             # Construct COMPOSE_FILES from validated environment
-            COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
-            if [ "$ENVIRONMENT" = "staging" ]; then
-              COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.rpi.yml"
-            fi
+            COMPOSE_FILES="-f docker-compose.yml -f docker-compose.${ENVIRONMENT}.yml"
 
             LOCK_FILE="/opt/volleyspike/.deploy.lock"
             TAG_VAR=$(echo "$SERVICE_NAME" | tr '-' '_' | tr '[:lower:]' '[:upper:]')_TAG

@@ -150,5 +150,5 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/volleyer-${{ inputs.service-name }}:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/volleyer-${{ inputs.service-name }}:${{ github.ref_name }}
-          cache-from: type=gha,scope=${{ inputs.service-name }}
-          cache-to: type=gha,mode=max,scope=${{ inputs.service-name }}
+          cache-from: type=gha,scope=${{ inputs.service-name }}-${{ github.ref_name }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.service-name }}-${{ github.ref_name }}
