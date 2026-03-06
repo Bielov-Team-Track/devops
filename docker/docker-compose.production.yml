@@ -3,7 +3,7 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "127.0.0.1:8090:80"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -194,6 +194,21 @@ services:
   payments-service:
     restart: unless-stopped
     env_file: [.env.common, .env.payments]
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 384M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    profiles: []
+    restart: unless-stopped
+    env_file: [.env.common, .env.frontend]
     deploy:
       resources:
         limits:

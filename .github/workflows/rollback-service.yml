@@ -125,10 +125,7 @@ jobs:
             fi
 
             # Construct COMPOSE_FILES from validated environment
-            COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
-            if [ "$ENVIRONMENT" = "staging" ]; then
-              COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.rpi.yml"
-            fi
+            COMPOSE_FILES="-f docker-compose.yml -f docker-compose.${ENVIRONMENT}.yml"
 
             LOCK_FILE="/opt/volleyspike/.deploy.lock"
             TAG_VAR=$(echo "$SERVICE_NAME" | tr '-' '_' | tr '[:lower:]' '[:upper:]')_TAG

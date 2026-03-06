@@ -206,6 +206,21 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  frontend:
+    profiles: []
+    restart: unless-stopped
+    env_file: [.env.common, .env.frontend]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   caddy_data:
   caddy_config:

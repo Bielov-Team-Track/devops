@@ -132,9 +132,9 @@
         reverse_proxy payments-service:5050
     }
 
-    # No frontend on this server (deployed on Vercel)
+    # Default: route to frontend container
     handle {
-        respond "Not Found" 404
+        reverse_proxy frontend:3000
     }
 
     encode zstd gzip {
