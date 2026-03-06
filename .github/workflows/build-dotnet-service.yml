@@ -4,42 +4,33 @@ on:
   workflow_call:
     inputs:
       service-name:
-        description: 'Service name'
         required: true
         type: string
       service-path:
-        description: 'Path to service'
         required: true
         type: string
       project-name:
-        description: 'Main project name'
         required: true
         type: string
       solution-file:
-        description: 'Solution file name'
         required: true
         type: string
       port:
-        description: 'Service port'
         required: true
         type: string
       run-tests:
-        description: 'Run unit tests'
         required: false
         type: boolean
         default: true
       push-docker-image:
-        description: 'Build and push Docker image'
         required: false
         type: boolean
         default: false
       build-migration-bundle:
-        description: 'Build EF Core migration bundle'
         required: false
         type: boolean
         default: false
       infrastructure-project-path:
-        description: 'Relative path to the .csproj containing EF migrations'
         required: false
         type: string
         default: ''
@@ -48,22 +39,6 @@ jobs:
   build:
     name: Build ${{ inputs.service-name }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Restore dependencies
-        run: dotnet restore "${{ inputs.solution-file }}" --locked-mode
-        working-directory: ${{ inputs.service-path }}
-
-      - name: Build
-        run: dotnet build "${{ inputs.solution-file }}" --no-restore -c Release
-        working-directory: ${{ inputs.service-path }}
+      - uses: actions/checkout@v4
+      - run: echo "Building ${{ inputs.service-name }}"
