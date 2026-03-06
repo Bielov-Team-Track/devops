@@ -44,9 +44,6 @@ jobs:
   deploy:
     name: Deploy ${{ inputs.service-name }} to ${{ inputs.environment }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
     environment: ${{ inputs.environment }}
     concurrency:
       group: deploy-${{ inputs.environment }}
