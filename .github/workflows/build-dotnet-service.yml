@@ -85,7 +85,6 @@ jobs:
 
       - name: Run unit tests
         if: inputs.run-tests
-        continue-on-error: true
         run: dotnet test --no-build -c Release --filter "Category=Unit" --verbosity normal --logger "trx;LogFileName=test-results.trx"
         working-directory: ${{ inputs.service-path }}
 
