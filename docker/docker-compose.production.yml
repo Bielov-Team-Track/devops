@@ -10,17 +10,8 @@ services:
       - caddy_config:/config
     networks:
       - volleyer-network
-    depends_on:
-      - auth-service
-      - events-service
-      - clubs-service
-      - profiles-service
-      - messages-service
-      - notifications-service
-      - social-service
-      - coaching-service
-      - payments-service
-      - frontend
+    # No depends_on — Caddy returns 502 for unavailable upstreams until they start.
+    # This also avoids pulling all service images on first deploy.
     deploy:
       resources:
         limits:
@@ -30,6 +21,8 @@ services:
   postgres:
     restart: unless-stopped
     env_file: .env.common
+    ports:
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U volleyer_user"]
       interval: 30s
@@ -86,19 +79,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  debezium:
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   auth-service:
     restart: unless-stopped
     env_file: [.env.common, .env.auth]
@@ -134,7 +114,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 512M
+          memory: 384M
     logging:
       driver: json-file
       options:
@@ -148,7 +128,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 512M
+          memory: 384M
     logging:
       driver: json-file
       options:
@@ -176,7 +156,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 512M
+          memory: 384M
     logging:
       driver: json-file
       options:
@@ -190,7 +170,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 512M
+          memory: 384M
     logging:
       driver: json-file
       options:
@@ -204,7 +184,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 512M
+          memory: 384M
     logging:
       driver: json-file
       options:
@@ -218,20 +198,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 512M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  frontend:
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
+          memory: 384M
     logging:
       driver: json-file
       options:

@@ -26,11 +26,6 @@
         X-XSS-Protection "0"
         Referrer-Policy strict-origin-when-cross-origin
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
-        # Baseline CSP -- Next.js requires 'unsafe-inline' for hydration scripts.
-        # Long-term: switch to nonce-based CSP via Next.js middleware to remove 'unsafe-inline'.
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' wss://api.volleyspike.app https://api.volleyspike.app https://*.stripe.com https://*.amazonaws.com; font-src 'self'; frame-ancestors 'none'"
-        # HSTS: 1 year, include subdomains. Cloudflare also sets this, but defense-in-depth.
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"
         -Server
     }
 
@@ -105,6 +100,16 @@
             }
         }
     }
+    handle /coaching/hubs/evaluation* {
+        uri strip_prefix /coaching
+        reverse_proxy coaching-service:5060 {
+            flush_interval -1
+            transport http {
+                read_timeout 24h
+                write_timeout 24h
+            }
+        }
+    }
 
     # REST API routes
     handle_path /auth/* {
@@ -135,9 +140,9 @@
         reverse_proxy payments-service:5050
     }
 
-    # Frontend catch-all
+    # No frontend on this server (deployed on Vercel)
     handle {
-        reverse_proxy frontend:3000
+        respond "Not Found" 404
     }
 
     encode zstd gzip {

@@ -9,7 +9,7 @@ services:
       - ./init:/docker-entrypoint-initdb.d
     networks:
       - volleyer-network
-    command: postgres -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4
+    command: postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U volleyer_user"]
       interval: 10s
@@ -50,6 +50,7 @@ services:
 
   debezium:
     image: debezium/server:2.4
+    profiles: ["development"]
     volumes:
       - ./debezium:/debezium/conf
       - debezium_data:/debezium/data
@@ -149,6 +150,7 @@ services:
 
   frontend:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-frontend:${FRONTEND_TAG:-main}
+    profiles: ["development"]
     networks:
       - volleyer-network
 
