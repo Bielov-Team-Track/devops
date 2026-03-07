@@ -357,19 +357,20 @@ jobs:
             ) 200>"$LOCK_FILE"
 
             # --- Phase 2: Health check OUTSIDE the lock ---
+            # Check container health directly via Docker (avoids reverse proxy issues)
             HEALTH_CHECK_OK="false"
-            HEALTH_URL="http://localhost:80${HEALTH_CHECK_PATH}"
             MAX_RETRIES=30
             RETRY_INTERVAL=5
 
-            echo "Starting health check: $HEALTH_URL (max ${MAX_RETRIES} attempts, ${RETRY_INTERVAL}s interval)"
+            echo "Starting health check for $SERVICE_NAME (max ${MAX_RETRIES} attempts, ${RETRY_INTERVAL}s interval)"
             for i in $(seq 1 "$MAX_RETRIES"); do
-              if curl -sf --max-time 5 "$HEALTH_URL" > /dev/null 2>&1; then
-                echo "Health check passed on attempt $i"
+              HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$(docker compose $COMPOSE_FILES ps -q "$SERVICE_NAME")" 2>/dev/null || echo "unknown")
+              if [ "$HEALTH_STATUS" = "healthy" ]; then
+                echo "Health check passed on attempt $i (status: healthy)"
                 HEALTH_CHECK_OK="true"
                 break
               fi
-              echo "Health check attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_INTERVAL}s..."
+              echo "Health check attempt $i/$MAX_RETRIES: status=$HEALTH_STATUS, retrying in ${RETRY_INTERVAL}s..."
               sleep "$RETRY_INTERVAL"
             done
 
