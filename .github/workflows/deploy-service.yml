@@ -238,13 +238,24 @@ jobs:
             # Create minimal appsettings.json so the host builder doesn't fail
             echo '{}' > "$DEPLOY_PATH/migrations/appsettings.json"
 
+            # Build env file for Docker with common env vars + service-specific env vars
+            ENV_FILE="$DEPLOY_PATH/migrations/.migration.env"
+            : > "$ENV_FILE"
+            echo "DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT" >> "$ENV_FILE"
+            for envfile in "$DEPLOY_PATH/.env.common" "$DEPLOY_PATH/.env.${SERVICE_NAME%-service}"; do
+              [ -f "$envfile" ] || continue
+              grep -v '^\s*#' "$envfile" | grep -v '^\s*$' >> "$ENV_FILE"
+            done
+
             docker run $PLATFORM_FLAG --rm --network host \
-              -e DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT \
+              --env-file "$ENV_FILE" \
               -w /migrations \
               -v "$DEPLOY_PATH/migrations:/migrations" \
               mcr.microsoft.com/dotnet/aspnet:10.0 \
               /migrations/efbundle-$SERVICE_NAME \
               --connection "$CONN_STRING"
+
+            rm -f "$ENV_FILE"
 
             echo "=== Migration completed ==="
             rm -f "$BUNDLE" "$BUNDLE.sha256"
