@@ -272,18 +272,21 @@ jobs:
           ENVIRONMENT: ${{ inputs.environment }}
           DEPLOY_PATH: ${{ inputs.deploy-path }}
           HEALTH_CHECK_PATH: ${{ steps.health.outputs.path }}
-          GITHUB_REPOSITORY_OWNER: ${{ env.OWNER_LC }}
+          OWNER_LC: ${{ env.OWNER_LC }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           fingerprint: ${{ secrets.SSH_FINGERPRINT }}
           command_timeout: 30m
-          envs: TAG,SERVICE_NAME,ENVIRONMENT,DEPLOY_PATH,HEALTH_CHECK_PATH,GITHUB_REPOSITORY_OWNER
+          envs: TAG,SERVICE_NAME,ENVIRONMENT,DEPLOY_PATH,HEALTH_CHECK_PATH,OWNER_LC
           script: |
             set -euo pipefail
 
             cd "$DEPLOY_PATH"
+
+            # Export lowercase owner for docker-compose image references
+            export GITHUB_REPOSITORY_OWNER="$OWNER_LC"
 
             # Validate inputs to prevent shell injection
             if ! echo "$SERVICE_NAME" | grep -qE '^[a-z][a-z0-9-]{1,30}$'; then
