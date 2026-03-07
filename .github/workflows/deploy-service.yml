@@ -237,10 +237,10 @@ jobs:
 
             docker run $PLATFORM_FLAG --rm --network host \
               -e DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT \
-              -e "ConnectionStrings__DefaultConnection=$CONN_STRING" \
               -v "$DEPLOY_PATH/migrations:/migrations" \
-              --entrypoint "/migrations/efbundle-$SERVICE_NAME" \
-              mcr.microsoft.com/dotnet/aspnet:10.0
+              mcr.microsoft.com/dotnet/aspnet:10.0 \
+              /migrations/efbundle-$SERVICE_NAME \
+              --connection "$CONN_STRING"
 
             echo "=== Migration completed ==="
             rm -f "$BUNDLE" "$BUNDLE.sha256"
