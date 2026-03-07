@@ -229,20 +229,18 @@ jobs:
             chmod +x "$BUNDLE"
             echo "=== Running migration: efbundle-$SERVICE_NAME ==="
 
+            # Always run via Docker to avoid requiring .NET on the host
+            PLATFORM_FLAG=""
             if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-              docker run --platform linux/amd64 --rm --network host \
-                -e DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT \
-                -e "ConnectionStrings__DefaultConnection=$CONN_STRING" \
-                -v "$DEPLOY_PATH/migrations:/migrations" \
-                --entrypoint "/migrations/efbundle-$SERVICE_NAME" \
-                mcr.microsoft.com/dotnet/aspnet:10.0
-            else
-              env -i \
-                PATH="/usr/local/bin:/usr/bin:/bin" \
-                DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT \
-                "ConnectionStrings__DefaultConnection=$CONN_STRING" \
-                "$BUNDLE"
+              PLATFORM_FLAG="--platform linux/amd64"
             fi
+
+            docker run $PLATFORM_FLAG --rm --network host \
+              -e DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT \
+              -e "ConnectionStrings__DefaultConnection=$CONN_STRING" \
+              -v "$DEPLOY_PATH/migrations:/migrations" \
+              --entrypoint "/migrations/efbundle-$SERVICE_NAME" \
+              mcr.microsoft.com/dotnet/aspnet:10.0
 
             echo "=== Migration completed ==="
             rm -f "$BUNDLE" "$BUNDLE.sha256"
