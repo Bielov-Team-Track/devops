@@ -235,8 +235,12 @@ jobs:
               PLATFORM_FLAG="--platform linux/amd64"
             fi
 
+            # Create minimal appsettings.json so the host builder doesn't fail
+            echo '{}' > "$DEPLOY_PATH/migrations/appsettings.json"
+
             docker run $PLATFORM_FLAG --rm --network host \
               -e DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT \
+              -w /migrations \
               -v "$DEPLOY_PATH/migrations:/migrations" \
               mcr.microsoft.com/dotnet/aspnet:10.0 \
               /migrations/efbundle-$SERVICE_NAME \
