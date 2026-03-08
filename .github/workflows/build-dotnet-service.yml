@@ -251,14 +251,7 @@ jobs:
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: >-
-            ${{
-              job.status == 'success'
-                && (inputs.push-docker-image && 'docker-passed' || 'build-passed')
-                || (steps.tests.outcome == 'failure' && 'tests-failed')
-                || (inputs.push-docker-image && 'docker-failed')
-                || 'build-failed'
-            }}
+          status: ${{ job.status == 'success' && (inputs.push-docker-image && 'docker-passed' || 'build-passed') || (steps.tests.outcome == 'failure' && 'tests-failed') || (inputs.push-docker-image && 'docker-failed') || 'build-failed' }}
           service-name: ${{ inputs.service-name }}
           message-id: ${{ steps.tg-start.outputs.message-id }}
           previous-lines: ${{ steps.tg-start.outputs.message-lines }}
