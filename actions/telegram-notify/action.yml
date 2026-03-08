@@ -140,24 +140,17 @@ runs:
         esac
 
         # Compose message: header (if new/updated) + previous lines + new line + link
+        LINK="<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
         if [ -n "$HEADER" ] && [ -n "$PREV" ]; then
           BODY_LINES=$(echo "$PREV" | tail -n +2)
-          MSG="${HEADER}
-${BODY_LINES}
-${LINE}
-<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
+          MSG=$(printf '%s\n%s\n%s\n%s' "$HEADER" "$BODY_LINES" "$LINE" "$LINK")
         elif [ -n "$HEADER" ]; then
-          MSG="${HEADER}
-${LINE}
-<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
+          MSG=$(printf '%s\n%s\n%s' "$HEADER" "$LINE" "$LINK")
         elif [ -n "$PREV" ]; then
           BODY=$(echo "$PREV" | grep -v '🔗 View Run')
-          MSG="${BODY}
-${LINE}
-<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
+          MSG=$(printf '%s\n%s\n%s' "$BODY" "$LINE" "$LINK")
         else
-          MSG="${LINE}
-<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
+          MSG=$(printf '%s\n%s' "$LINE" "$LINK")
         fi
 
         # Clean up: remove empty lines
