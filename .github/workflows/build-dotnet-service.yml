@@ -167,7 +167,7 @@ jobs:
             --project "$INFRA_PATH" \
             --startup-project "$PROJECT_NAME/$PROJECT_NAME.csproj" \
             --configuration Release \
-            --no-restore \
+            --no-build \
             -r linux-x64 \
             -o "efbundle-$SERVICE_NAME"
           chmod +x "efbundle-$SERVICE_NAME"
