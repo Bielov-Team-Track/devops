@@ -1,5 +1,5 @@
 name: 'Telegram Notify'
-description: 'Send a notification to Telegram'
+description: 'Send or edit a Telegram notification with CI/CD status'
 
 inputs:
   bot-token:
@@ -9,124 +9,207 @@ inputs:
     description: 'Telegram chat/group ID'
     required: true
   status:
-    description: 'Status: success, failure, cancelled'
+    description: 'Status: build-started, build-passed, build-failed, tests-started, tests-passed, tests-failed, deploy-started, deploy-success, deploy-failure'
+    required: true
+  service-name:
+    description: 'Service name (e.g., auth-service)'
     required: true
   environment:
     description: 'Deployment environment (staging/production)'
     required: false
     default: ''
-  message:
-    description: 'Custom message (overrides auto-generated)'
+  message-id:
+    description: 'Existing message ID to edit (empty = send new message)'
     required: false
     default: ''
   duration:
-    description: 'Duration string (e.g., "3m 24s")'
+    description: 'Duration string (e.g., "2m 14s")'
     required: false
     default: ''
+  test-type:
+    description: 'Test type label (e.g., "Unit", "Integration")'
+    required: false
+    default: ''
+  tests-passed:
+    description: 'Number of tests passed'
+    required: false
+    default: ''
+  tests-failed:
+    description: 'Number of tests failed'
+    required: false
+    default: ''
+  tests-total:
+    description: 'Total number of tests'
+    required: false
+    default: ''
+  previous-lines:
+    description: 'Previous message content lines to preserve (base64-encoded to avoid shell issues)'
+    required: false
+    default: ''
+
+outputs:
+  message-id:
+    description: 'The sent/edited message ID for subsequent edits'
+    value: ${{ steps.send.outputs.message_id }}
+  message-lines:
+    description: 'Current message content lines (base64-encoded) for passing to next step'
+    value: ${{ steps.send.outputs.message_lines }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Build notification message
-      id: build-message
+    - name: Send or edit Telegram message
+      id: send
       shell: bash
       env:
-        INPUT_STATUS: ${{ inputs.status }}
-        INPUT_ENVIRONMENT: ${{ inputs.environment }}
-        INPUT_MESSAGE: ${{ inputs.message }}
-        INPUT_DURATION: ${{ inputs.duration }}
-        GITHUB_REPOSITORY: ${{ github.repository }}
-        GITHUB_RUN_ID: ${{ github.run_id }}
-        GITHUB_SHA: ${{ github.sha }}
-        GITHUB_REF_NAME: ${{ github.ref_name }}
-        GITHUB_ACTOR: ${{ github.actor }}
-        GITHUB_SERVER_URL: ${{ github.server_url }}
+        TG_TOKEN: ${{ inputs.bot-token }}
+        TG_CHAT_ID: ${{ inputs.chat-id }}
+        TG_STATUS: ${{ inputs.status }}
+        TG_SERVICE: ${{ inputs.service-name }}
+        TG_ENV: ${{ inputs.environment }}
+        TG_MESSAGE_ID: ${{ inputs.message-id }}
+        TG_DURATION: ${{ inputs.duration }}
+        TG_TEST_TYPE: ${{ inputs.test-type }}
+        TG_TESTS_PASSED: ${{ inputs.tests-passed }}
+        TG_TESTS_FAILED: ${{ inputs.tests-failed }}
+        TG_TESTS_TOTAL: ${{ inputs.tests-total }}
+        TG_PREV_LINES: ${{ inputs.previous-lines }}
+        GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
-        # HTML-escape user-controlled values to prevent injection into Telegram messages
-        escape_html() { echo "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
+        set -euo pipefail
 
-        SHORT_SHA="${GITHUB_SHA:0:7}"
-        SAFE_REF=$(escape_html "$GITHUB_REF_NAME")
-        SAFE_ACTOR=$(escape_html "$GITHUB_ACTOR")
-        RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        # Mask the token in both raw and URL-concatenated forms to prevent leaking in logs
+        echo "::add-mask::${TG_TOKEN}"
+        echo "::add-mask::bot${TG_TOKEN}"
 
-        if [ -n "$INPUT_MESSAGE" ]; then
-          # Use delimiter for multiline output
-          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          echo "message<<$EOF" >> "$GITHUB_OUTPUT"
-          echo "$INPUT_MESSAGE" >> "$GITHUB_OUTPUT"
-          echo "$EOF" >> "$GITHUB_OUTPUT"
-          exit 0
+        # Sanitize inputs for Telegram HTML (prevent injection via special chars)
+        TG_SERVICE=$(echo "$TG_SERVICE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+        TG_ENV=$(echo "$TG_ENV" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+        TG_TEST_TYPE=$(echo "$TG_TEST_TYPE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+        TG_DURATION=$(echo "$TG_DURATION" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+
+        # Decode previous message lines if present
+        PREV=""
+        if [ -n "$TG_PREV_LINES" ]; then
+          PREV=$(echo "$TG_PREV_LINES" | base64 -d)
         fi
 
-        case "$INPUT_STATUS" in
-          success)
-            ICON="✅"
-            TITLE="Build Succeeded"
+        # Build the current status line based on status
+        case "$TG_STATUS" in
+          build-started)
+            LINE="⏳ Building..."
+            HEADER="🔨 <b>${TG_SERVICE}</b>"
             ;;
-          failure)
-            ICON="❌"
-            TITLE="Build Failed"
+          build-passed)
+            LINE="✅ Build (${TG_DURATION})"
+            HEADER="🔨 <b>${TG_SERVICE}</b>"
             ;;
-          cancelled)
-            ICON="⚠️"
-            TITLE="Build Cancelled"
+          build-failed)
+            LINE="❌ Build failed"
+            HEADER="❌ <b>${TG_SERVICE}</b>"
+            ;;
+          tests-started)
+            LINE="⏳ ${TG_TEST_TYPE} tests..."
+            HEADER=""
+            ;;
+          tests-passed)
+            LINE="✅ ${TG_TEST_TYPE}: ${TG_TESTS_PASSED} passed"
+            HEADER=""
+            ;;
+          tests-failed)
+            FAIL_INFO="${TG_TESTS_FAILED} failed, ${TG_TESTS_PASSED} passed"
+            LINE="❌ ${TG_TEST_TYPE}: ${FAIL_INFO}"
+            HEADER=""
             ;;
           deploy-started)
-            ICON="🚀"
-            TITLE="Deploy Started"
+            LINE="⏳ Deploying to ${TG_ENV}..."
+            HEADER=""
             ;;
           deploy-success)
-            ICON="✅"
-            TITLE="Deploy Succeeded"
+            LINE="✅ Deployed (${TG_DURATION})"
+            HEADER="✅ <b>${TG_SERVICE} → ${TG_ENV}</b>"
             ;;
           deploy-failure)
-            ICON="🔥"
-            TITLE="Deploy Failed"
-            ;;
-          rollback)
-            ICON="⏪"
-            TITLE="Rollback"
+            LINE="❌ Deploy failed"
+            HEADER="❌ <b>${TG_SERVICE} → ${TG_ENV}</b>"
             ;;
           *)
-            ICON="ℹ️"
-            TITLE="CI/CD"
+            LINE="ℹ️ ${TG_STATUS}"
+            HEADER=""
             ;;
         esac
 
-        ENV_LINE=""
-        if [ -n "$INPUT_ENVIRONMENT" ]; then
-          ENV_LINE="<b>Environment:</b> ${INPUT_ENVIRONMENT}"
+        # Compose message: header (if new/updated) + previous lines + new line + link
+        if [ -n "$HEADER" ] && [ -n "$PREV" ]; then
+          BODY_LINES=$(echo "$PREV" | tail -n +2)
+          MSG="${HEADER}
+${BODY_LINES}
+${LINE}
+<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
+        elif [ -n "$HEADER" ]; then
+          MSG="${HEADER}
+${LINE}
+<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
+        elif [ -n "$PREV" ]; then
+          BODY=$(echo "$PREV" | grep -v '🔗 View Run')
+          MSG="${BODY}
+${LINE}
+<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
+        else
+          MSG="${LINE}
+<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
         fi
 
-        DURATION_LINE=""
-        if [ -n "$INPUT_DURATION" ]; then
-          DURATION_LINE="<b>Duration:</b> ${INPUT_DURATION}"
+        # Clean up: remove empty lines
+        MSG=$(echo "$MSG" | sed '/^[[:space:]]*$/d')
+
+        # Send or edit
+        if [ -n "$TG_MESSAGE_ID" ]; then
+          RESPONSE=$(curl -s --max-time 10 --retry 1 -X POST "https://api.telegram.org/bot${TG_TOKEN}/editMessageText" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg chat_id "$TG_CHAT_ID" \
+              --arg message_id "$TG_MESSAGE_ID" \
+              --arg text "$MSG" \
+              '{chat_id: $chat_id, message_id: ($message_id | tonumber), text: $text, parse_mode: "HTML", disable_web_page_preview: true}')")
+          RESP_OK=$(echo "$RESPONSE" | jq -r '.ok // empty')
+          if [ "$RESP_OK" != "true" ]; then
+            RESP_DESC=$(echo "$RESPONSE" | jq -r '.description // empty')
+            if echo "$RESP_DESC" | grep -q "message is not modified"; then
+              echo "INFO: Message content unchanged, treating as success"
+            else
+              echo "WARNING: editMessageText failed" >&2
+              echo "$RESPONSE" | jq '{ok, error_code, description}' >&2
+            fi
+          fi
+          MSG_ID="$TG_MESSAGE_ID"
+        else
+          RESPONSE=$(curl -s --max-time 10 --retry 1 -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg chat_id "$TG_CHAT_ID" \
+              --arg text "$MSG" \
+              '{chat_id: $chat_id, text: $text, parse_mode: "HTML", disable_web_page_preview: true}')")
+          MSG_ID=$(echo "$RESPONSE" | jq -r '.result.message_id // empty')
         fi
 
-        MSG="${ICON} <b>${TITLE}</b>
-        <b>Repo:</b> ${GITHUB_REPOSITORY}
-        <b>Branch:</b> ${SAFE_REF}
-        <b>Commit:</b> ${SHORT_SHA}
-        <b>Author:</b> ${SAFE_ACTOR}
-        ${ENV_LINE}
-        ${DURATION_LINE}
-        <a href=\"${RUN_URL}\">View Run</a>"
+        if [ -z "$MSG_ID" ]; then
+          echo "WARNING: Failed to get message_id from Telegram response"
+          echo "$RESPONSE" | jq '{ok, error_code, description}' >&2 || true
+          MSG_ID=""
+        fi
 
-        # Remove empty lines from optional fields
-        MSG=$(echo "$MSG" | sed '/^$/d' | sed '/^[[:space:]]*$/d')
+        # Use heredoc delimiters for GITHUB_OUTPUT to prevent injection
+        EOF_DELIM=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+        {
+          echo "message_id<<${EOF_DELIM}"
+          echo "$MSG_ID"
+          echo "${EOF_DELIM}"
+        } >> "$GITHUB_OUTPUT"
 
-        # Use delimiter for multiline output
-        EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-        echo "message<<$EOF" >> "$GITHUB_OUTPUT"
-        echo "$MSG" >> "$GITHUB_OUTPUT"
-        echo "$EOF" >> "$GITHUB_OUTPUT"
-
-    - name: Send Telegram notification
-      uses: appleboy/telegram-action@a77dd3e42f32216ac2df808866c70b5aa41e6e75 # v1.0.0
-      with:
-        to: ${{ inputs.chat-id }}
-        token: ${{ inputs.bot-token }}
-        format: html
-        disable_web_page_preview: true
-        message: ${{ steps.build-message.outputs.message }}
+        ENCODED=$(echo "$MSG" | base64 -w 0)
+        {
+          echo "message_lines<<${EOF_DELIM}"
+          echo "$ENCODED"
+          echo "${EOF_DELIM}"
+        } >> "$GITHUB_OUTPUT"
