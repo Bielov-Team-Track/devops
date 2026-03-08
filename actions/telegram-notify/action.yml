@@ -163,7 +163,7 @@ runs:
         if [ -n "$PREV" ]; then
           case "$TG_STATUS" in
             *-passed|*-failed|*-success|*-failure)
-              PREV=$(echo "$PREV" | grep -v '⏳')
+              PREV=$(echo "$PREV" | grep -v '⏳' || true)
               ;;
           esac
         fi
@@ -171,12 +171,12 @@ runs:
         # Compose message: header (if new/updated) + previous lines + new line + link
         LINK="<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
         if [ -n "$HEADER" ] && [ -n "$PREV" ]; then
-          BODY_LINES=$(echo "$PREV" | tail -n +2 | grep -v '🔗 View Run')
+          BODY_LINES=$(echo "$PREV" | tail -n +2 | grep -v '🔗 View Run' || true)
           MSG=$(printf '%s\n%s\n%s\n%s' "$HEADER" "$BODY_LINES" "$LINE" "$LINK")
         elif [ -n "$HEADER" ]; then
           MSG=$(printf '%s\n%s\n%s' "$HEADER" "$LINE" "$LINK")
         elif [ -n "$PREV" ]; then
-          BODY=$(echo "$PREV" | grep -v '🔗 View Run')
+          BODY=$(echo "$PREV" | grep -v '🔗 View Run' || true)
           MSG=$(printf '%s\n%s\n%s' "$BODY" "$LINE" "$LINK")
         else
           MSG=$(printf '%s\n%s' "$LINE" "$LINK")
