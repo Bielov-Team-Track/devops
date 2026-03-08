@@ -1,0 +1,145 @@
+name: Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        description: 'Service name (e.g., auth-service)'
+        required: true
+        type: string
+      service-path:
+        description: 'Path to service source'
+        required: true
+        type: string
+      project-name:
+        description: 'Main project name (e.g., Auth)'
+        required: true
+        type: string
+      solution-file:
+        description: 'Solution file name (e.g., Auth.sln)'
+        required: true
+        type: string
+      telegram-message-id:
+        description: 'Telegram message ID to edit'
+        required: false
+        type: string
+        default: ''
+      telegram-message-lines:
+        description: 'Previous message content (base64)'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      TELEGRAM_BOT_TOKEN:
+        required: false
+      TELEGRAM_CHAT_ID:
+        required: false
+    outputs:
+      telegram-message-id:
+        description: 'Updated Telegram message ID'
+        value: ${{ jobs.test.outputs.telegram-message-id }}
+      telegram-message-lines:
+        description: 'Updated message content (base64)'
+        value: ${{ jobs.test.outputs.telegram-message-lines }}
+
+jobs:
+  test:
+    name: Integration Tests (${{ inputs.service-name }})
+    runs-on: ubuntu-latest
+    env:
+      TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+    outputs:
+      telegram-message-id: ${{ steps.tg-result.outputs.message-id }}
+      telegram-message-lines: ${{ steps.tg-result.outputs.message-lines }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Checkout shared libraries
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: Bielov-Team-Track/shared
+          path: shared
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ inputs.service-name }}-${{ hashFiles(format('{0}/**/packages.lock.json', inputs.service-path)) }}
+          restore-keys: |
+            nuget-${{ inputs.service-name }}-
+
+      - name: Restore and build
+        run: dotnet build "$SOLUTION_FILE" -c Release
+        working-directory: ${{ inputs.service-path }}
+        env:
+          SOLUTION_FILE: ${{ inputs.solution-file }}
+
+      - name: Send integration tests started notification
+        if: env.TG_TOKEN != ''
+        id: tg-start
+        continue-on-error: true
+        uses: Bielov-Team-Track/devops/actions/telegram-notify@main
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          status: tests-started
+          service-name: ${{ inputs.service-name }}
+          message-id: ${{ inputs.telegram-message-id }}
+          previous-lines: ${{ inputs.telegram-message-lines }}
+          test-type: Integration
+
+      - name: Run integration tests
+        run: |
+          dotnet test --no-build -c Release \
+            --filter "Category=Integration" \
+            --verbosity normal \
+            --logger "trx;LogFileName=integration-results.trx"
+        working-directory: ${{ inputs.service-path }}
+
+      - name: Parse test results
+        if: always()
+        id: test-results
+        working-directory: ${{ inputs.service-path }}
+        run: |
+          TRX_FILE=$(find . -name "integration-results.trx" | head -1)
+          if [ -f "$TRX_FILE" ]; then
+            COUNTERS=$(grep '<Counters' "$TRX_FILE" | head -1)
+            PASSED=$(echo "$COUNTERS" | grep -oP 'passed="\K[0-9]+' || echo "0")
+            FAILED=$(echo "$COUNTERS" | grep -oP 'failed="\K[0-9]+' || echo "0")
+            TOTAL=$(echo "$COUNTERS" | grep -oP 'total="\K[0-9]+' || echo "0")
+            echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+            echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+            echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: integration-results-${{ inputs.service-name }}
+          path: ${{ inputs.service-path }}/**/integration-results.trx
+          retention-days: 7
+
+      - name: Send integration test result notification
+        if: always() && env.TG_TOKEN != ''
+        id: tg-result
+        continue-on-error: true
+        uses: Bielov-Team-Track/devops/actions/telegram-notify@main
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          status: ${{ job.status == 'success' && 'tests-passed' || 'tests-failed' }}
+          service-name: ${{ inputs.service-name }}
+          message-id: ${{ steps.tg-start.outputs.message-id || inputs.telegram-message-id }}
+          previous-lines: ${{ steps.tg-start.outputs.message-lines }}
+          test-type: Integration
+          tests-passed: ${{ steps.test-results.outputs.passed }}
+          tests-failed: ${{ steps.test-results.outputs.failed }}
+          tests-total: ${{ steps.test-results.outputs.total }}
