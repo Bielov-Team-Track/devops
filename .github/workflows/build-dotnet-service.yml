@@ -91,7 +91,7 @@ jobs:
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: build-started
+          status: ${{ inputs.push-docker-image && 'docker-started' || 'build-started' }}
           service-name: ${{ inputs.service-name }}
           message-id: ${{ inputs.telegram-message-id }}
           previous-lines: ${{ inputs.telegram-message-lines }}
@@ -247,7 +247,7 @@ jobs:
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: ${{ job.status == 'success' && 'build-passed' || 'build-failed' }}
+          status: ${{ inputs.push-docker-image && (job.status == 'success' && 'docker-passed' || 'docker-failed') || (job.status == 'success' && 'build-passed' || 'build-failed') }}
           service-name: ${{ inputs.service-name }}
           message-id: ${{ steps.tg-start.outputs.message-id }}
           previous-lines: ${{ steps.tg-start.outputs.message-lines }}

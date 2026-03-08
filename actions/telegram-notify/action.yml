@@ -101,11 +101,31 @@ runs:
             HEADER="🔨 <b>${TG_SERVICE}</b>"
             ;;
           build-passed)
-            LINE="✅ Build (${TG_DURATION})"
+            if [ -n "$TG_TESTS_PASSED" ]; then
+              LINE="✅ Build · ${TG_TEST_TYPE}: ${TG_TESTS_PASSED} passed (${TG_DURATION})"
+            else
+              LINE="✅ Build (${TG_DURATION})"
+            fi
             HEADER="🔨 <b>${TG_SERVICE}</b>"
             ;;
           build-failed)
-            LINE="❌ Build failed"
+            if [ -n "$TG_TESTS_FAILED" ] && [ "$TG_TESTS_FAILED" != "0" ]; then
+              LINE="❌ Build · ${TG_TEST_TYPE}: ${TG_TESTS_FAILED} failed"
+            else
+              LINE="❌ Build failed"
+            fi
+            HEADER="❌ <b>${TG_SERVICE}</b>"
+            ;;
+          docker-started)
+            LINE="⏳ Docker..."
+            HEADER=""
+            ;;
+          docker-passed)
+            LINE="✅ Docker (${TG_DURATION})"
+            HEADER=""
+            ;;
+          docker-failed)
+            LINE="❌ Docker failed"
             HEADER="❌ <b>${TG_SERVICE}</b>"
             ;;
           tests-started)
@@ -142,7 +162,7 @@ runs:
         # Compose message: header (if new/updated) + previous lines + new line + link
         LINK="<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
         if [ -n "$HEADER" ] && [ -n "$PREV" ]; then
-          BODY_LINES=$(echo "$PREV" | tail -n +2)
+          BODY_LINES=$(echo "$PREV" | tail -n +2 | grep -v '🔗 View Run')
           MSG=$(printf '%s\n%s\n%s\n%s' "$HEADER" "$BODY_LINES" "$LINE" "$LINK")
         elif [ -n "$HEADER" ]; then
           MSG=$(printf '%s\n%s\n%s' "$HEADER" "$LINE" "$LINK")
