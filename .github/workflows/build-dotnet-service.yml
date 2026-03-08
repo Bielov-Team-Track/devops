@@ -43,14 +43,58 @@ on:
         required: false
         type: string
         default: ''
+      telegram-message-id:
+        description: 'Existing Telegram message ID to continue editing from a previous job'
+        required: false
+        type: string
+        default: ''
+      telegram-message-lines:
+        description: 'Previous message content (base64) to preserve from a previous job'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      TELEGRAM_BOT_TOKEN:
+        required: false
+      TELEGRAM_CHAT_ID:
+        required: false
+    outputs:
+      telegram-message-id:
+        description: 'Telegram message ID for editing in downstream jobs'
+        value: ${{ jobs.build.outputs.telegram-message-id }}
+      telegram-message-lines:
+        description: 'Current message content (base64) for downstream jobs'
+        value: ${{ jobs.build.outputs.telegram-message-lines }}
 
 jobs:
   build:
     name: Build ${{ inputs.service-name }}
     runs-on: ubuntu-latest
+    outputs:
+      telegram-message-id: ${{ steps.tg-result.outputs.message-id }}
+      telegram-message-lines: ${{ steps.tg-result.outputs.message-lines }}
     steps:
       - name: Set lowercase owner
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - name: Record build start time
+        id: timer
+        run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Send build started notification
+        if: env.TG_TOKEN != ''
+        id: tg-start
+        continue-on-error: true
+        uses: Bielov-Team-Track/devops/actions/telegram-notify@main
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          status: build-started
+          service-name: ${{ inputs.service-name }}
+          message-id: ${{ inputs.telegram-message-id }}
+          previous-lines: ${{ inputs.telegram-message-lines }}
 
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -91,6 +135,21 @@ jobs:
         run: dotnet test --no-build -c Release --filter "Category=Unit" --verbosity normal --logger "trx;LogFileName=test-results.trx"
         working-directory: ${{ inputs.service-path }}
 
+      - name: Parse test results
+        if: inputs.run-tests && always()
+        id: test-results
+        run: |
+          TRX_FILE=$(find . -name "test-results.trx" -path "*/${{ inputs.service-path }}/*" | head -1)
+          if [ -f "$TRX_FILE" ]; then
+            COUNTERS=$(grep '<Counters' "$TRX_FILE" | head -1)
+            PASSED=$(echo "$COUNTERS" | grep -oP 'passed="\K[0-9]+' || echo "0")
+            FAILED=$(echo "$COUNTERS" | grep -oP 'failed="\K[0-9]+' || echo "0")
+            TOTAL=$(echo "$COUNTERS" | grep -oP 'total="\K[0-9]+' || echo "0")
+            echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+            echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+            echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload test results
         if: inputs.run-tests && always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -108,6 +167,7 @@ jobs:
             --project "$INFRA_PATH" \
             --startup-project "$PROJECT_NAME/$PROJECT_NAME.csproj" \
             --configuration Release \
+            --no-restore \
             -r linux-x64 \
             -o "efbundle-$SERVICE_NAME"
           chmod +x "efbundle-$SERVICE_NAME"
@@ -164,3 +224,35 @@ jobs:
             ghcr.io/${{ env.OWNER_LC }}/volleyer-${{ inputs.service-name }}:${{ github.ref_name }}
           cache-from: type=gha,scope=${{ inputs.service-name }}-${{ github.ref_name }}
           cache-to: type=gha,mode=max,scope=${{ inputs.service-name }}-${{ github.ref_name }}
+
+      - name: Calculate build duration
+        if: always()
+        id: duration
+        env:
+          START: ${{ steps.timer.outputs.start }}
+        run: |
+          END=$(date +%s)
+          DIFF=$((END - START))
+          MINS=$((DIFF / 60))
+          SECS=$((DIFF % 60))
+          echo "duration=${MINS}m ${SECS}s" >> "$GITHUB_OUTPUT"
+
+      - name: Send build result notification
+        if: always() && env.TG_TOKEN != '' && steps.tg-start.outputs.message-id != ''
+        id: tg-result
+        continue-on-error: true
+        uses: Bielov-Team-Track/devops/actions/telegram-notify@main
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          status: ${{ job.status == 'success' && 'build-passed' || 'build-failed' }}
+          service-name: ${{ inputs.service-name }}
+          message-id: ${{ steps.tg-start.outputs.message-id }}
+          previous-lines: ${{ steps.tg-start.outputs.message-lines }}
+          duration: ${{ steps.duration.outputs.duration }}
+          test-type: Unit
+          tests-passed: ${{ steps.test-results.outputs.passed }}
+          tests-failed: ${{ steps.test-results.outputs.failed }}
+          tests-total: ${{ steps.test-results.outputs.total }}
