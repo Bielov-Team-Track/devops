@@ -26,6 +26,16 @@ on:
         required: false
         type: string
         default: ''
+      telegram-message-id:
+        description: 'Telegram message ID to edit from build/test steps'
+        required: false
+        type: string
+        default: ''
+      telegram-message-lines:
+        description: 'Previous message content (base64) from build/test steps'
+        required: false
+        type: string
+        default: ''
     secrets:
       SSH_HOST:
         required: true
@@ -36,15 +46,17 @@ on:
       SSH_FINGERPRINT:
         required: true
       TELEGRAM_BOT_TOKEN:
-        required: true
+        required: false
       TELEGRAM_CHAT_ID:
-        required: true
+        required: false
 
 jobs:
   deploy:
     name: Deploy ${{ inputs.service-name }} to ${{ inputs.environment }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    env:
+      TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
     concurrency:
       group: deploy-${{ inputs.environment }}
       cancel-in-progress: false
@@ -97,12 +109,18 @@ jobs:
           done
 
       - name: Send deploy started notification
+        if: env.TG_TOKEN != ''
+        id: tg-deploy-start
+        continue-on-error: true
         uses: Bielov-Team-Track/devops/actions/telegram-notify@main
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
           status: deploy-started
+          service-name: ${{ inputs.service-name }}
           environment: ${{ inputs.environment }}
+          message-id: ${{ inputs.telegram-message-id }}
+          previous-lines: ${{ inputs.telegram-message-lines }}
 
       - name: Upload migration bundles to server
         if: inputs.has-migrations
@@ -238,12 +256,10 @@ jobs:
               PLATFORM_FLAG="--platform linux/amd64"
             fi
 
-            # Create minimal appsettings.json so the host builder doesn't fail
-            echo '{}' > "$DEPLOY_PATH/migrations/appsettings.json"
-
             # Build env file for Docker with common env vars + service-specific env vars
-            ENV_FILE="$DEPLOY_PATH/migrations/.migration.env"
-            : > "$ENV_FILE"
+            ENV_FILE="$(mktemp)"
+            trap 'rm -f "$ENV_FILE"' EXIT
+            chmod 600 "$ENV_FILE"
             echo "DOTNET_ENVIRONMENT=$DOTNET_ENVIRONMENT" >> "$ENV_FILE"
             for envfile in "$DEPLOY_PATH/.env.common" "$DEPLOY_PATH/.env.${SERVICE_NAME%-service}"; do
               [ -f "$envfile" ] || continue
@@ -257,8 +273,6 @@ jobs:
               mcr.microsoft.com/dotnet/aspnet:10.0 \
               /migrations/efbundle-$SERVICE_NAME \
               --connection "$CONN_STRING"
-
-            rm -f "$ENV_FILE"
 
             echo "=== Migration completed ==="
             rm -f "$BUNDLE" "$BUNDLE.sha256"
@@ -427,21 +441,28 @@ jobs:
           echo "duration=${MINS}m ${SECS}s" >> "$GITHUB_OUTPUT"
 
       - name: Notify deploy success
-        if: success()
+        if: success() && env.TG_TOKEN != ''
+        continue-on-error: true
         uses: Bielov-Team-Track/devops/actions/telegram-notify@main
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
           status: deploy-success
+          service-name: ${{ inputs.service-name }}
           environment: ${{ inputs.environment }}
+          message-id: ${{ steps.tg-deploy-start.outputs.message-id }}
+          previous-lines: ${{ steps.tg-deploy-start.outputs.message-lines }}
           duration: ${{ steps.duration.outputs.duration }}
 
       - name: Notify deploy failure
-        if: failure()
+        if: failure() && env.TG_TOKEN != ''
+        continue-on-error: true
         uses: Bielov-Team-Track/devops/actions/telegram-notify@main
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
           status: deploy-failure
+          service-name: ${{ inputs.service-name }}
           environment: ${{ inputs.environment }}
-          duration: ${{ steps.duration.outputs.duration }}
+          message-id: ${{ steps.tg-deploy-start.outputs.message-id }}
+          previous-lines: ${{ steps.tg-deploy-start.outputs.message-lines }}
