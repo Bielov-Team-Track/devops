@@ -125,12 +125,14 @@ jobs:
           SOLUTION_FILE: ${{ inputs.solution-file }}
 
       - name: Build
+        id: build
         run: dotnet build "$SOLUTION_FILE" --no-restore -c Release
         working-directory: ${{ inputs.service-path }}
         env:
           SOLUTION_FILE: ${{ inputs.solution-file }}
 
       - name: Run unit tests
+        id: tests
         if: inputs.run-tests
         run: dotnet test --no-build -c Release --filter "Category=Unit" --verbosity normal --logger "trx;LogFileName=test-results.trx"
         working-directory: ${{ inputs.service-path }}
@@ -139,7 +141,9 @@ jobs:
         if: inputs.run-tests && always()
         id: test-results
         run: |
-          TRX_FILE=$(find . -name "test-results.trx" -path "*/${{ inputs.service-path }}/*" | head -1)
+          TRX_FILE=$(find "$SERVICE_PATH" -name "test-results.trx" | head -1)
+        env:
+          SERVICE_PATH: ${{ inputs.service-path }}
           if [ -f "$TRX_FILE" ]; then
             COUNTERS=$(grep '<Counters' "$TRX_FILE" | head -1)
             PASSED=$(echo "$COUNTERS" | grep -oP 'passed="\K[0-9]+' || echo "0")
@@ -247,7 +251,14 @@ jobs:
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: ${{ inputs.push-docker-image && (job.status == 'success' && 'docker-passed' || 'docker-failed') || (job.status == 'success' && 'build-passed' || 'build-failed') }}
+          status: >-
+            ${{
+              job.status == 'success'
+                && (inputs.push-docker-image && 'docker-passed' || 'build-passed')
+                || (steps.tests.outcome == 'failure' && 'tests-failed')
+                || (inputs.push-docker-image && 'docker-failed')
+                || 'build-failed'
+            }}
           service-name: ${{ inputs.service-name }}
           message-id: ${{ steps.tg-start.outputs.message-id }}
           previous-lines: ${{ steps.tg-start.outputs.message-lines }}

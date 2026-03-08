@@ -139,7 +139,7 @@ runs:
           tests-failed)
             FAIL_INFO="${TG_TESTS_FAILED} failed, ${TG_TESTS_PASSED} passed"
             LINE="❌ ${TG_TEST_TYPE}: ${FAIL_INFO}"
-            HEADER=""
+            HEADER="❌ <b>${TG_SERVICE}</b>"
             ;;
           deploy-started)
             LINE="⏳ Deploying to ${TG_ENV}..."
