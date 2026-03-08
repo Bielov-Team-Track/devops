@@ -185,11 +185,6 @@ jobs:
           S3__PublicBaseUrl: https://placeholder.s3.eu-west-2.amazonaws.com
           S3__PresignedUrlExpiryMinutes: "15"
 
-      - name: Restore lock files after migration bundle
-        if: inputs.build-migration-bundle && inputs.push-docker-image
-        run: git checkout -- shared/
-        working-directory: ${{ inputs.service-path }}
-
       - name: Upload migration bundle
         if: inputs.build-migration-bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
