@@ -94,7 +94,8 @@ runs:
           PREV=$(echo "$TG_PREV_LINES" | base64 -d)
         fi
 
-        # Build the current status line based on status
+        # Build the current status line and strip pattern for replacing ⏳ lines
+        STRIP=""
         case "$TG_STATUS" in
           build-started)
             LINE="⏳ Building..."
@@ -107,6 +108,7 @@ runs:
               LINE="✅ Build (${TG_DURATION})"
             fi
             HEADER="🔨 <b>${TG_SERVICE}</b>"
+            STRIP="⏳ Building"
             ;;
           build-failed)
             if [ -n "$TG_TESTS_FAILED" ] && [ "$TG_TESTS_FAILED" != "0" ]; then
@@ -115,6 +117,7 @@ runs:
               LINE="❌ Build failed"
             fi
             HEADER="❌ <b>${TG_SERVICE}</b>"
+            STRIP="⏳ Building"
             ;;
           docker-started)
             LINE="⏳ Docker..."
@@ -123,10 +126,12 @@ runs:
           docker-passed)
             LINE="✅ Docker (${TG_DURATION})"
             HEADER=""
+            STRIP="⏳ Docker"
             ;;
           docker-failed)
             LINE="❌ Docker failed"
             HEADER="❌ <b>${TG_SERVICE}</b>"
+            STRIP="⏳ Docker"
             ;;
           tests-started)
             LINE="⏳ ${TG_TEST_TYPE} tests..."
@@ -135,11 +140,13 @@ runs:
           tests-passed)
             LINE="✅ ${TG_TEST_TYPE}: ${TG_TESTS_PASSED} passed"
             HEADER=""
+            STRIP="⏳ .*tests"
             ;;
           tests-failed)
             FAIL_INFO="${TG_TESTS_FAILED} failed, ${TG_TESTS_PASSED} passed"
             LINE="❌ ${TG_TEST_TYPE}: ${FAIL_INFO}"
             HEADER="❌ <b>${TG_SERVICE}</b>"
+            STRIP="⏳ .*tests"
             ;;
           deploy-started)
             LINE="⏳ Deploying to ${TG_ENV}..."
@@ -148,16 +155,23 @@ runs:
           deploy-success)
             LINE="✅ Deployed (${TG_DURATION})"
             HEADER="✅ <b>${TG_SERVICE} → ${TG_ENV}</b>"
+            STRIP="⏳ Deploying"
             ;;
           deploy-failure)
             LINE="❌ Deploy failed"
             HEADER="❌ <b>${TG_SERVICE} → ${TG_ENV}</b>"
+            STRIP="⏳ Deploying"
             ;;
           *)
             LINE="ℹ️ ${TG_STATUS}"
             HEADER=""
             ;;
         esac
+
+        # Strip the corresponding in-progress line from previous content
+        if [ -n "$STRIP" ] && [ -n "$PREV" ]; then
+          PREV=$(echo "$PREV" | grep -v "$STRIP")
+        fi
 
         # Compose message: header (if new/updated) + previous lines + new line + link
         LINK="<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
