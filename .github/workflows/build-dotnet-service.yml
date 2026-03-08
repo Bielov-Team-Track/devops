@@ -140,10 +140,10 @@ jobs:
       - name: Parse test results
         if: inputs.run-tests && always()
         id: test-results
-        run: |
-          TRX_FILE=$(find "$SERVICE_PATH" -name "test-results.trx" | head -1)
         env:
           SERVICE_PATH: ${{ inputs.service-path }}
+        run: |
+          TRX_FILE=$(find "$SERVICE_PATH" -name "test-results.trx" | head -1)
           if [ -f "$TRX_FILE" ]; then
             COUNTERS=$(grep '<Counters' "$TRX_FILE" | head -1)
             PASSED=$(echo "$COUNTERS" | grep -oP 'passed="\K[0-9]+' || echo "0")
