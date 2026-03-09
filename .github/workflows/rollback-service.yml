@@ -23,11 +23,6 @@ on:
         required: false
         type: string
         default: '/opt/volleyspike'
-      health-check-path:
-        description: 'Override health check URL path (default: derived from service name)'
-        required: false
-        type: string
-        default: ''
 
 jobs:
   rollback:
@@ -44,6 +39,9 @@ jobs:
       - name: Checkout devops repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Set lowercase owner
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
       - name: Validate image tag
         env:
           IMAGE_TAG: ${{ inputs.image-tag }}
@@ -51,20 +49,6 @@ jobs:
           if ! echo "$IMAGE_TAG" | grep -qE '^[a-f0-9]{7,40}$'; then
             echo "::error::Invalid image tag: must be a hex SHA (7-40 characters)"
             exit 1
-          fi
-
-      - name: Derive health check path
-        id: health
-        env:
-          SERVICE_NAME: ${{ inputs.service-name }}
-          HEALTH_CHECK_PATH_INPUT: ${{ inputs.health-check-path }}
-        run: |
-          if [ -n "$HEALTH_CHECK_PATH_INPUT" ]; then
-            echo "path=$HEALTH_CHECK_PATH_INPUT" >> "$GITHUB_OUTPUT"
-          else
-            # Derive from service name: auth-service -> /auth/health
-            PREFIX="${SERVICE_NAME%-service}"
-            echo "path=/${PREFIX}/health" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Send rollback notification
@@ -82,15 +66,14 @@ jobs:
           SERVICE_NAME: ${{ inputs.service-name }}
           ENVIRONMENT: ${{ inputs.environment }}
           DEPLOY_PATH: ${{ inputs.deploy-path }}
-          HEALTH_CHECK_PATH: ${{ steps.health.outputs.path }}
-          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          OWNER_LC: ${{ env.OWNER_LC }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           fingerprint: ${{ secrets.SSH_FINGERPRINT }}
           command_timeout: 30m
-          envs: TAG,SERVICE_NAME,ENVIRONMENT,DEPLOY_PATH,HEALTH_CHECK_PATH,GITHUB_REPOSITORY_OWNER
+          envs: TAG,SERVICE_NAME,ENVIRONMENT,DEPLOY_PATH,OWNER_LC
           script: |
             set -euo pipefail
 
@@ -117,12 +100,6 @@ jobs:
               /opt/volleyspike) ;;
               *) echo "ERROR: Invalid DEPLOY_PATH: $DEPLOY_PATH"; exit 1 ;;
             esac
-
-            # Validate HEALTH_CHECK_PATH
-            if ! echo "$HEALTH_CHECK_PATH" | grep -qE '^/[a-z0-9/-]{1,50}$'; then
-              echo "ERROR: Invalid HEALTH_CHECK_PATH: $HEALTH_CHECK_PATH"
-              exit 1
-            fi
 
             # Construct COMPOSE_FILES from validated environment
             COMPOSE_FILES="-f docker-compose.yml -f docker-compose.${ENVIRONMENT}.yml"
@@ -161,18 +138,18 @@ jobs:
 
             # --- Phase 2: Health check OUTSIDE the lock ---
             HEALTH_CHECK_OK="false"
-            HEALTH_URL="http://localhost:80${HEALTH_CHECK_PATH}"
             MAX_RETRIES=30
             RETRY_INTERVAL=5
 
-            echo "Starting health check: $HEALTH_URL (max ${MAX_RETRIES} attempts, ${RETRY_INTERVAL}s interval)"
+            echo "Starting health check via docker inspect (max ${MAX_RETRIES} attempts, ${RETRY_INTERVAL}s interval)"
             for i in $(seq 1 "$MAX_RETRIES"); do
-              if curl -sf --max-time 5 "$HEALTH_URL" > /dev/null 2>&1; then
+              HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$(docker compose $COMPOSE_FILES ps -q "$SERVICE_NAME")" 2>/dev/null || echo "unknown")
+              if [ "$HEALTH_STATUS" = "healthy" ]; then
                 echo "Health check passed on attempt $i"
                 HEALTH_CHECK_OK="true"
                 break
               fi
-              echo "Health check attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_INTERVAL}s..."
+              echo "Health check attempt $i/$MAX_RETRIES: status=$HEALTH_STATUS, retrying in ${RETRY_INTERVAL}s..."
               sleep "$RETRY_INTERVAL"
             done
 
