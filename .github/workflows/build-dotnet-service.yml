@@ -119,7 +119,7 @@ jobs:
             nuget-${{ inputs.service-name }}-
 
       - name: Restore dependencies
-        run: dotnet restore "$SOLUTION_FILE" --locked-mode || dotnet restore "$SOLUTION_FILE" --force-evaluate
+        run: dotnet restore "$SOLUTION_FILE"
         working-directory: ${{ inputs.service-path }}
         env:
           SOLUTION_FILE: ${{ inputs.solution-file }}
