@@ -121,9 +121,14 @@ jobs:
             echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
             echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
             echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
-            if [ "$TOTAL" = "0" ] || [ -z "$TOTAL" ]; then
+            if [ "$TOTAL" = "0" ]; then
               echo "skipped=true" >> "$GITHUB_OUTPUT"
             fi
+          else
+            echo "passed=0" >> "$GITHUB_OUTPUT"
+            echo "failed=0" >> "$GITHUB_OUTPUT"
+            echo "total=0" >> "$GITHUB_OUTPUT"
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Upload test results
