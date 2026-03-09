@@ -41,6 +41,9 @@ on:
       telegram-message-lines:
         description: 'Updated message content (base64)'
         value: ${{ jobs.test.outputs.telegram-message-lines }}
+      skipped:
+        description: 'Whether integration tests were skipped (no tests found)'
+        value: ${{ jobs.test.outputs.skipped }}
 
 jobs:
   test:
@@ -51,6 +54,7 @@ jobs:
     outputs:
       telegram-message-id: ${{ steps.tg-result.outputs.message-id }}
       telegram-message-lines: ${{ steps.tg-result.outputs.message-lines }}
+      skipped: ${{ steps.test-results.outputs.skipped }}
 
     steps:
       - name: Checkout
@@ -117,6 +121,9 @@ jobs:
             echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
             echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
             echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+            if [ "$TOTAL" = "0" ] || [ -z "$TOTAL" ]; then
+              echo "skipped=true" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Upload test results
@@ -135,7 +142,7 @@ jobs:
         with:
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: ${{ job.status == 'success' && 'tests-passed' || 'tests-failed' }}
+          status: ${{ steps.test-results.outputs.skipped == 'true' && 'tests-skipped' || (job.status == 'success' && 'tests-passed' || 'tests-failed') }}
           service-name: ${{ inputs.service-name }}
           message-id: ${{ steps.tg-start.outputs.message-id || inputs.telegram-message-id }}
           previous-lines: ${{ steps.tg-start.outputs.message-lines }}

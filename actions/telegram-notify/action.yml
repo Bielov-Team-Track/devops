@@ -9,7 +9,7 @@ inputs:
     description: 'Telegram chat/group ID'
     required: true
   status:
-    description: 'Status: build-started, build-passed, build-failed, tests-started, tests-passed, tests-failed, deploy-started, deploy-success, deploy-failure'
+    description: 'Status: build-started, build-passed, build-failed, tests-started, tests-passed, tests-failed, tests-skipped, deploy-started, deploy-success, deploy-failure'
     required: true
   service-name:
     description: 'Service name (e.g., auth-service)'
@@ -140,6 +140,10 @@ runs:
             FAIL_INFO="${TG_TESTS_FAILED} failed, ${TG_TESTS_PASSED} passed"
             LINE="❌ ${TG_TEST_TYPE}: ${FAIL_INFO}"
             HEADER="❌ <b>${TG_SERVICE}</b>"
+            ;;
+          tests-skipped)
+            LINE="⏭ ${TG_TEST_TYPE}: no tests"
+            HEADER=""
             ;;
           deploy-started)
             LINE="⏳ Deploying to ${TG_ENV}..."
