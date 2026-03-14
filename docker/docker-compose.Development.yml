@@ -155,7 +155,7 @@ services:
         container_name: volleyer-profiles-dev
         environment:
             - ASPNETCORE_ENVIRONMENT=Development
-            - ASPNETCORE_URLS=http://+:5170
+            - ASPNETCORE_URLS=http://+:5170;http://+:5171
             - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
             - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
             - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
@@ -163,6 +163,7 @@ services:
             - DOTNET_RUNNING_IN_CONTAINER=true
         ports:
             - "5170:5170" # HTTP
+            - "5171:5171" # gRPC
             - "10002:10002" # Debugger
         volumes:
             - ../../microservices/profiles-service:/app

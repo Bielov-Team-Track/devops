@@ -11,7 +11,7 @@ Parameters:
             - prod
     DomainName:
         Type: String
-        Default: api.volleyer.app
+        Default: api.volleyspike.app
         Description: Custom domain name for API Gateway
     CertificateArn:
         Type: String
@@ -299,7 +299,7 @@ Resources:
     # ==================== CUSTOM DOMAIN ====================
     # Custom Domain Name
     # Note: DNS will be managed via Cloudflare CNAME record
-    # CNAME: api.volleyer.app -> {ApiGatewayRegionalDomainName}
+    # CNAME: api.volleyspike.app -> {ApiGatewayRegionalDomainName}
     # Set Cloudflare proxy to "DNS Only" (Gray Cloud) to preserve SSL
     ApiDomainName:
         Type: AWS::ApiGateway::DomainName
@@ -351,7 +351,7 @@ Outputs:
             Name: !Sub "volleyer-api-domain-url-${Environment}"
 
     CloudflareCNAMETarget:
-        Description: Target for Cloudflare CNAME record (api.volleyer.app -> this value)
+        Description: Target for Cloudflare CNAME record (api.volleyspike.app -> this value)
         Value: !GetAtt ApiDomainName.RegionalDomainName
         Export:
             Name: !Sub "volleyer-cloudflare-cname-target-${Environment}"

@@ -165,7 +165,7 @@ Resources:
                 CorsRules:
                     - AllowedHeaders: ["*"]
                       AllowedMethods: [GET, PUT, POST]
-                      AllowedOrigins: ["http://localhost:3000", "https://volleyer.app"] # Restrict in production
+                      AllowedOrigins: ["http://localhost:3000", "https://www.volleyspike.app"] # Restrict in production
                       MaxAge: 3600
 
 Outputs:
