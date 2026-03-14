@@ -47,6 +47,10 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
+      - name: Set lowercase owner
+        if: inputs.push-docker-image
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
       - name: Set up QEMU
         if: inputs.push-docker-image
         uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
@@ -72,8 +76,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository_owner }}/volleyer-frontend:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/volleyer-frontend:${{ github.ref_name }}
+            ghcr.io/${{ env.OWNER_LC }}/volleyer-frontend:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/volleyer-frontend:${{ github.ref_name }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
             NEXT_PUBLIC_WEBSOCKET_URL=${{ vars.NEXT_PUBLIC_WEBSOCKET_URL }}
