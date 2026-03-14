@@ -79,5 +79,5 @@ jobs:
             NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ vars.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
             NEXT_PUBLIC_BETA_MODE=${{ vars.NEXT_PUBLIC_BETA_MODE }}
             NEXT_PUBLIC_S3_HOSTNAME=${{ vars.NEXT_PUBLIC_S3_HOSTNAME }}
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
+          cache-from: type=gha,scope=frontend-${{ github.ref_name }}
+          cache-to: type=gha,mode=max,scope=frontend-${{ github.ref_name }}
