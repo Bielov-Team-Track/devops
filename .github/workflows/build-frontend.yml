@@ -85,5 +85,9 @@ jobs:
             NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ vars.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
             NEXT_PUBLIC_BETA_MODE=${{ vars.NEXT_PUBLIC_BETA_MODE }}
             NEXT_PUBLIC_S3_HOSTNAME=${{ vars.NEXT_PUBLIC_S3_HOSTNAME }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            SENTRY_ORG=${{ vars.SENTRY_ORG }}
+            SENTRY_PROJECT=${{ vars.SENTRY_PROJECT }}
           cache-from: type=gha,scope=frontend-${{ github.ref_name }}
           cache-to: type=gha,mode=max,scope=frontend-${{ github.ref_name }}
