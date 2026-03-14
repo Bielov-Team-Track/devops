@@ -42,6 +42,8 @@ services:
 
   redis:
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
     env_file: .env.common
     healthcheck:
       test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping"]
@@ -61,6 +63,8 @@ services:
 
   rabbitmq:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15692:15692"
     env_file: .env.common
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
@@ -81,6 +85,8 @@ services:
 
   auth-service:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15005:15005"
     env_file: [.env.common, .env.auth]
     deploy:
       resources:
@@ -95,6 +101,8 @@ services:
 
   events-service:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15010:15010"
     env_file: [.env.common, .env.events]
     deploy:
       resources:
@@ -109,6 +117,8 @@ services:
 
   clubs-service:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15020:15020"
     env_file: [.env.common, .env.clubs]
     deploy:
       resources:
@@ -123,6 +133,8 @@ services:
 
   profiles-service:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15170:15170"
     env_file: [.env.common, .env.profiles]
     deploy:
       resources:
@@ -137,6 +149,8 @@ services:
 
   messages-service:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15180:15180"
     env_file: [.env.common, .env.messages]
     deploy:
       resources:
@@ -151,6 +165,8 @@ services:
 
   notifications-service:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15030:15030"
     env_file: [.env.common, .env.notifications]
     deploy:
       resources:
@@ -165,6 +181,8 @@ services:
 
   social-service:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15040:15040"
     env_file: [.env.common, .env.social]
     deploy:
       resources:
@@ -179,6 +197,8 @@ services:
 
   coaching-service:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15060:15060"
     env_file: [.env.common, .env.coaching]
     deploy:
       resources:
@@ -193,6 +213,8 @@ services:
 
   payments-service:
     restart: unless-stopped
+    ports:
+      - "10.10.0.2:15050:15050"
     env_file: [.env.common, .env.payments]
     deploy:
       resources:
