@@ -40,8 +40,6 @@ jobs:
         run: npm audit --audit-level=high
 
       - name: Run ESLint
-        # TODO: Fix ESLint flat config migration (eslint-config-next@16 + ESLint 9)
-        continue-on-error: true
         run: npm run lint
 
       - name: TypeScript type check
