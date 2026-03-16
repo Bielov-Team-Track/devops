@@ -228,6 +228,28 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.147.0
+    container_name: otel-collector
+    command: ['--config=/etc/otelcol/config.yml']
+    volumes:
+      - ./otel-collector/otel-collector-config.yml:/etc/otelcol/config.yml:ro
+    networks:
+      - volleyer-network
+    environment:
+      - GOMEMLIMIT=200MiB
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 384M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   frontend:
     profiles: []
     restart: unless-stopped

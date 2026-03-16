@@ -338,6 +338,22 @@ services:
             rabbitmq:
                 condition: service_healthy
 
+    otel-collector:
+        image: otel/opentelemetry-collector-contrib:0.147.0
+        container_name: otel-collector
+        command: ['--config=/etc/otelcol/config.yml']
+        volumes:
+            - ./otel-collector-config.dev.yml:/etc/otelcol/config.yml:ro
+        networks:
+            - volleyer_network
+        ports:
+            - "127.0.0.1:4317:4317"
+            - "127.0.0.1:4318:4318"
+        deploy:
+            resources:
+                limits:
+                    memory: 512M
+
     nginx:
         image: nginx:alpine
         container_name: volleyer-nginx
