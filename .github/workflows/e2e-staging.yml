@@ -1,0 +1,131 @@
+name: E2E Tests (Staging)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test-filter:
+        description: 'Playwright test filter (e.g., "auth" or "clubs")'
+        required: false
+        default: ''
+  workflow_call:
+    inputs:
+      test-filter:
+        description: 'Playwright test filter'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      SSH_HOST:
+        required: true
+      SSH_USER:
+        required: true
+      SSH_KEY:
+        required: true
+      SSH_FINGERPRINT:
+        required: true
+      TELEGRAM_BOT_TOKEN:
+        required: false
+      TELEGRAM_CHAT_ID:
+        required: false
+
+jobs:
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout E2E tests
+        uses: actions/checkout@v4
+        with:
+          repository: Bielov-Team-Track/Bielov-Team-Track
+          sparse-checkout: tests/e2e
+          sparse-checkout-cone-mode: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Install dependencies
+        working-directory: tests/e2e
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Add SSH fingerprint
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_FINGERPRINT }}" >> ~/.ssh/known_hosts
+
+      - name: Health check staging services
+        run: |
+          echo "Checking staging services health..."
+          SERVICES=("auth" "events" "clubs" "profiles" "messages" "notifications" "social" "coaching" "payments")
+          FAILED=0
+          for SVC in "${SERVICES[@]}"; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://staging.api.volleyspike.app/$SVC/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "  $SVC: OK"
+            else
+              echo "  $SVC: FAILED (HTTP $STATUS)"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+          if [ "$FAILED" -gt 0 ]; then
+            echo "ERROR: $FAILED service(s) unhealthy. Aborting E2E tests."
+            exit 1
+          fi
+
+      - name: Reset staging databases
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "bash /opt/volleyspike/reset-staging-db.sh"
+
+      - name: Run Playwright tests
+        working-directory: tests/e2e
+        env:
+          BASE_URL: https://staging.volleyspike.app
+          CI: true
+        run: |
+          FILTER="${{ inputs.test-filter || '' }}"
+          if [ -n "$FILTER" ]; then
+            npx playwright test --grep "$FILTER"
+          else
+            npx playwright test
+          fi
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report/
+          retention-days: 14
+
+      - name: Post results to Telegram
+        if: always() && secrets.TELEGRAM_BOT_TOKEN != ''
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            STATUS="PASSED"
+          else
+            STATUS="FAILED"
+          fi
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="HTML" \
+            -d text="<b>E2E Tests ${STATUS}</b>
+          Environment: staging
+          Filter: ${{ inputs.test-filter || 'all' }}
+          <a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">View run</a>" || true
