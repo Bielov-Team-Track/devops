@@ -181,18 +181,25 @@ runs:
           esac
         fi
 
-        # Compose message: header (if new/updated) + previous lines + new line + link
+        # Compose message: header + separator + body lines + separator + link
+        SEP="———"
         LINK="<a href=\"${GITHUB_RUN_URL}\">🔗 View Run</a>"
         if [ -n "$HEADER" ] && [ -n "$PREV" ]; then
-          BODY_LINES=$(echo "$PREV" | tail -n +2 | grep -v '🔗 View Run' || true)
-          MSG=$(printf '%s\n%s\n%s\n%s' "$HEADER" "$BODY_LINES" "$LINE" "$LINK")
+          BODY_LINES=$(echo "$PREV" | tail -n +2 | grep -v '🔗 View Run' | grep -v "^${SEP}$" || true)
+          MSG=$(printf '%s\n%s\n%s\n%s\n%s\n%s' "$HEADER" "$SEP" "$BODY_LINES" "$LINE" "$SEP" "$LINK")
         elif [ -n "$HEADER" ]; then
-          MSG=$(printf '%s\n%s\n%s' "$HEADER" "$LINE" "$LINK")
+          MSG=$(printf '%s\n%s\n%s\n%s\n%s' "$HEADER" "$SEP" "$LINE" "$SEP" "$LINK")
         elif [ -n "$PREV" ]; then
-          BODY=$(echo "$PREV" | grep -v '🔗 View Run' || true)
-          MSG=$(printf '%s\n%s\n%s' "$BODY" "$LINE" "$LINK")
+          PREV_CLEAN=$(echo "$PREV" | grep -v '🔗 View Run' | grep -v "^${SEP}$" || true)
+          PREV_HEADER=$(echo "$PREV_CLEAN" | head -1)
+          PREV_BODY=$(echo "$PREV_CLEAN" | tail -n +2 || true)
+          if [ -n "$PREV_BODY" ]; then
+            MSG=$(printf '%s\n%s\n%s\n%s\n%s\n%s' "$PREV_HEADER" "$SEP" "$PREV_BODY" "$LINE" "$SEP" "$LINK")
+          else
+            MSG=$(printf '%s\n%s\n%s\n%s\n%s' "$PREV_HEADER" "$SEP" "$LINE" "$SEP" "$LINK")
+          fi
         else
-          MSG=$(printf '%s\n%s' "$LINE" "$LINK")
+          MSG=$(printf '%s\n%s\n%s' "$LINE" "$SEP" "$LINK")
         fi
 
         # Clean up: remove empty lines
