@@ -118,7 +118,7 @@ runs:
             ;;
           docker-started)
             LINE="⏳ Docker..."
-            HEADER=""
+            HEADER="🔨 <b>${TG_SERVICE}</b>"
             ;;
           docker-passed)
             LINE="✅ Docker (${TG_DURATION})"
@@ -146,22 +146,31 @@ runs:
             HEADER=""
             ;;
           deploy-started)
-            LINE="⏳ Deploying to ${TG_ENV}..."
+            LINE="⏳ Deploying..."
             HEADER=""
             ;;
           deploy-success)
             LINE="✅ Deployed (${TG_DURATION})"
-            HEADER="✅ <b>${TG_SERVICE} → ${TG_ENV}</b>"
+            HEADER="✅ <b>${TG_SERVICE}</b>"
             ;;
           deploy-failure)
             LINE="❌ Deploy failed"
-            HEADER="❌ <b>${TG_SERVICE} → ${TG_ENV}</b>"
+            HEADER="❌ <b>${TG_SERVICE}</b>"
             ;;
           *)
             LINE="ℹ️ ${TG_STATUS}"
             HEADER=""
             ;;
         esac
+
+        # Prepend environment badge to header line
+        if [ -n "$HEADER" ] && [ -n "$TG_ENV" ]; then
+          case "$TG_ENV" in
+            production) HEADER="🟢 Production · ${HEADER}" ;;
+            staging)    HEADER="🟡 Staging · ${HEADER}" ;;
+            *)          HEADER="${TG_ENV} · ${HEADER}" ;;
+          esac
+        fi
 
         # Strip all in-progress (⏳) lines from previous content on any completion status
         if [ -n "$PREV" ]; then
