@@ -29,6 +29,11 @@ on:
         required: false
         type: string
         default: ''
+      environment:
+        description: 'Deployment environment (staging/production) for notification badge'
+        required: false
+        type: string
+        default: ''
     secrets:
       TELEGRAM_BOT_TOKEN:
         required: false
@@ -95,6 +100,7 @@ jobs:
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
           status: tests-started
           service-name: ${{ inputs.service-name }}
+          environment: ${{ inputs.environment }}
           message-id: ${{ inputs.telegram-message-id }}
           previous-lines: ${{ inputs.telegram-message-lines }}
           test-type: Integration
@@ -153,6 +159,7 @@ jobs:
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
           status: ${{ steps.test-results.outputs.skipped == 'true' && 'tests-skipped' || (job.status == 'success' && 'tests-passed' || 'tests-failed') }}
           service-name: ${{ inputs.service-name }}
+          environment: ${{ inputs.environment }}
           message-id: ${{ steps.tg-start.outputs.message-id || inputs.telegram-message-id }}
           previous-lines: ${{ steps.tg-start.outputs.message-lines }}
           test-type: Integration
