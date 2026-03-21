@@ -74,7 +74,7 @@ jobs:
           SERVICES=("auth" "events" "clubs" "profiles" "messages" "notifications" "social" "coaching" "payments")
           FAILED=0
           for SVC in "${SERVICES[@]}"; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://staging.api.volleyspike.app/$SVC/health" || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://staging-api.volleyspike.app/$SVC/health" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "  $SVC: OK"
             else
