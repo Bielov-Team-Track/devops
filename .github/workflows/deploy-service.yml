@@ -26,16 +26,6 @@ on:
         required: false
         type: string
         default: ''
-      telegram-message-id:
-        description: 'Telegram message ID to edit from build/test steps'
-        required: false
-        type: string
-        default: ''
-      telegram-message-lines:
-        description: 'Previous message content (base64) from build/test steps'
-        required: false
-        type: string
-        default: ''
     secrets:
       SSH_HOST:
         required: true
@@ -45,18 +35,12 @@ on:
         required: true
       SSH_FINGERPRINT:
         required: true
-      TELEGRAM_BOT_TOKEN:
-        required: false
-      TELEGRAM_CHAT_ID:
-        required: false
 
 jobs:
   deploy:
     name: Deploy ${{ inputs.service-name }} to ${{ inputs.environment }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    env:
-      TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
     concurrency:
       group: deploy-${{ inputs.environment }}
       cancel-in-progress: false
@@ -108,19 +92,35 @@ jobs:
             fi
           done
 
-      - name: Send deploy started notification
-        if: env.TG_TOKEN != ''
-        id: tg-deploy-start
+      - name: Report deploy started
+        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
-        uses: Bielov-Team-Track/devops/actions/telegram-notify@main
-        with:
-          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: deploy-started
-          service-name: ${{ inputs.service-name }}
-          environment: ${{ inputs.environment }}
-          message-id: ${{ inputs.telegram-message-id }}
-          previous-lines: ${{ inputs.telegram-message-lines }}
+        env:
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
+          RUN_ID: ${{ github.run_id }}
+          SERVICE: ${{ inputs.service-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg run_id "$RUN_ID" \
+              --arg service "$SERVICE" \
+              --arg environment "$ENVIRONMENT" \
+              --arg stage "deploy" \
+              --arg status "running" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg git_sha "$GIT_SHA" \
+              --arg git_branch "$GIT_BRANCH" \
+              --arg git_message "$GIT_MESSAGE" \
+              --arg github_run_url "$RUN_URL" \
+              '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{github_run_url:$github_run_url}}')"
 
       - name: Upload migration bundles to server
         if: inputs.has-migrations
@@ -279,6 +279,7 @@ jobs:
             echo "Migration bundle cleaned up"
 
       - name: Deploy service (pull, restart, health check, update tags)
+        id: deploy
         uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
         env:
           TAG: ${{ github.sha }}
@@ -440,29 +441,62 @@ jobs:
           SECS=$((DIFF % 60))
           echo "duration=${MINS}m ${SECS}s" >> "$GITHUB_OUTPUT"
 
-      - name: Notify deploy success
-        if: success() && env.TG_TOKEN != ''
+      - name: Report deploy success
+        if: success() && vars.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
-        uses: Bielov-Team-Track/devops/actions/telegram-notify@main
-        with:
-          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: deploy-success
-          service-name: ${{ inputs.service-name }}
-          environment: ${{ inputs.environment }}
-          message-id: ${{ steps.tg-deploy-start.outputs.message-id }}
-          previous-lines: ${{ steps.tg-deploy-start.outputs.message-lines }}
-          duration: ${{ steps.duration.outputs.duration }}
+        env:
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
+          RUN_ID: ${{ github.run_id }}
+          SERVICE: ${{ inputs.service-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg run_id "$RUN_ID" \
+              --arg service "$SERVICE" \
+              --arg environment "$ENVIRONMENT" \
+              --arg stage "deploy" \
+              --arg status "success" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg git_sha "$GIT_SHA" \
+              --arg git_branch "$GIT_BRANCH" \
+              --arg git_message "$GIT_MESSAGE" \
+              --arg github_run_url "$RUN_URL" \
+              '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{github_run_url:$github_run_url}}')"
 
-      - name: Notify deploy failure
-        if: failure() && env.TG_TOKEN != ''
+      - name: Report deploy failure
+        if: failure() && vars.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
-        uses: Bielov-Team-Track/devops/actions/telegram-notify@main
-        with:
-          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: deploy-failure
-          service-name: ${{ inputs.service-name }}
-          environment: ${{ inputs.environment }}
-          message-id: ${{ steps.tg-deploy-start.outputs.message-id }}
-          previous-lines: ${{ steps.tg-deploy-start.outputs.message-lines }}
+        env:
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
+          RUN_ID: ${{ github.run_id }}
+          SERVICE: ${{ inputs.service-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg run_id "$RUN_ID" \
+              --arg service "$SERVICE" \
+              --arg environment "$ENVIRONMENT" \
+              --arg stage "deploy" \
+              --arg status "failure" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg git_sha "$GIT_SHA" \
+              --arg git_branch "$GIT_BRANCH" \
+              --arg git_message "$GIT_MESSAGE" \
+              --arg github_run_url "$RUN_URL" \
+              '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{github_run_url:$github_run_url}}')"

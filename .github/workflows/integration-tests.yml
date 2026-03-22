@@ -19,33 +19,12 @@ on:
         description: 'Solution file name (e.g., Auth.sln)'
         required: true
         type: string
-      telegram-message-id:
-        description: 'Telegram message ID to edit'
-        required: false
-        type: string
-        default: ''
-      telegram-message-lines:
-        description: 'Previous message content (base64)'
-        required: false
-        type: string
-        default: ''
       environment:
         description: 'Deployment environment (staging/production) for notification badge'
         required: false
         type: string
         default: ''
-    secrets:
-      TELEGRAM_BOT_TOKEN:
-        required: false
-      TELEGRAM_CHAT_ID:
-        required: false
     outputs:
-      telegram-message-id:
-        description: 'Updated Telegram message ID'
-        value: ${{ jobs.test.outputs.telegram-message-id }}
-      telegram-message-lines:
-        description: 'Updated message content (base64)'
-        value: ${{ jobs.test.outputs.telegram-message-lines }}
       skipped:
         description: 'Whether integration tests were skipped (no tests found)'
         value: ${{ jobs.test.outputs.skipped }}
@@ -54,11 +33,7 @@ jobs:
   test:
     name: Integration Tests (${{ inputs.service-name }})
     runs-on: ubuntu-latest
-    env:
-      TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
     outputs:
-      telegram-message-id: ${{ steps.tg-result.outputs.message-id }}
-      telegram-message-lines: ${{ steps.tg-result.outputs.message-lines }}
       skipped: ${{ steps.test-results.outputs.skipped }}
 
     steps:
@@ -90,27 +65,43 @@ jobs:
         env:
           SOLUTION_FILE: ${{ inputs.solution-file }}
 
-      - name: Send integration tests started notification
-        if: env.TG_TOKEN != ''
-        id: tg-start
+      - name: Report integration tests started
+        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
-        uses: Bielov-Team-Track/devops/actions/telegram-notify@main
-        with:
-          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: tests-started
-          service-name: ${{ inputs.service-name }}
-          environment: ${{ inputs.environment }}
-          message-id: ${{ inputs.telegram-message-id }}
-          previous-lines: ${{ inputs.telegram-message-lines }}
-          test-type: Integration
+        env:
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
+          RUN_ID: ${{ github.run_id }}
+          SERVICE: ${{ inputs.service-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg run_id "$RUN_ID" \
+              --arg service "$SERVICE" \
+              --arg environment "$ENVIRONMENT" \
+              --arg stage "integration_tests" \
+              --arg status "running" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg git_sha "$GIT_SHA" \
+              --arg git_branch "$GIT_BRANCH" \
+              --arg git_message "$GIT_MESSAGE" \
+              --arg github_run_url "$RUN_URL" \
+              '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{github_run_url:$github_run_url}}')"
 
       - name: Run integration tests
         run: |
           dotnet test --no-build -c Release \
             --filter "Category=Integration" \
             --verbosity normal \
-            --logger "trx;LogFileName=integration-results.trx"
+            --logger "trx;LogFileName=integration-results.trx" \
+            --collect:"XPlat Code Coverage"
         working-directory: ${{ inputs.service-path }}
 
       - name: Parse test results
@@ -141,6 +132,21 @@ jobs:
             echo "skipped=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Parse coverage results
+        if: always()
+        id: coverage
+        env:
+          SERVICE_PATH: ${{ inputs.service-path }}
+        run: |
+          COV_FILE=$(find "$SERVICE_PATH" -name "coverage.cobertura.xml" | head -1)
+          if [ -f "$COV_FILE" ]; then
+            LINE_RATE=$(grep -oP 'line-rate="\K[0-9.]+' "$COV_FILE" | head -1)
+            if [ -n "$LINE_RATE" ]; then
+              COVERAGE=$(echo "$LINE_RATE * 100" | bc -l | xargs printf "%.1f")
+              echo "percent=$COVERAGE" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -149,20 +155,41 @@ jobs:
           path: ${{ inputs.service-path }}/**/integration-results.trx
           retention-days: 7
 
-      - name: Send integration test result notification
-        if: always() && env.TG_TOKEN != ''
-        id: tg-result
+      - name: Report integration tests result
+        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
-        uses: Bielov-Team-Track/devops/actions/telegram-notify@main
-        with:
-          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          status: ${{ steps.test-results.outputs.skipped == 'true' && 'tests-skipped' || (job.status == 'success' && 'tests-passed' || 'tests-failed') }}
-          service-name: ${{ inputs.service-name }}
-          environment: ${{ inputs.environment }}
-          message-id: ${{ steps.tg-start.outputs.message-id || inputs.telegram-message-id }}
-          previous-lines: ${{ steps.tg-start.outputs.message-lines }}
-          test-type: Integration
-          tests-passed: ${{ steps.test-results.outputs.passed }}
-          tests-failed: ${{ steps.test-results.outputs.failed }}
-          tests-total: ${{ steps.test-results.outputs.total }}
+        env:
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
+          RUN_ID: ${{ github.run_id }}
+          SERVICE: ${{ inputs.service-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TEST_STATUS: ${{ job.status == 'success' && 'success' || 'failure' }}
+          PASSED: ${{ steps.test-results.outputs.passed || '0' }}
+          FAILED: ${{ steps.test-results.outputs.failed || '0' }}
+          TOTAL: ${{ steps.test-results.outputs.total || '0' }}
+          COVERAGE: ${{ steps.coverage.outputs.percent || '0' }}
+        run: |
+          curl -s --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg run_id "$RUN_ID" \
+              --arg service "$SERVICE" \
+              --arg environment "$ENVIRONMENT" \
+              --arg stage "integration_tests" \
+              --arg status "$TEST_STATUS" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg git_sha "$GIT_SHA" \
+              --arg git_branch "$GIT_BRANCH" \
+              --arg git_message "$GIT_MESSAGE" \
+              --arg github_run_url "$RUN_URL" \
+              --argjson passed "$PASSED" \
+              --argjson failed "$FAILED" \
+              --argjson total "$TOTAL" \
+              --argjson coverage "$COVERAGE" \
+              '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{passed:$passed,failed:$failed,total:$total,coverage_percent:$coverage,github_run_url:$github_run_url}}')"

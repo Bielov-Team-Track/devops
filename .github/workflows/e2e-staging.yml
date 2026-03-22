@@ -23,10 +23,6 @@ on:
         required: true
       SSH_FINGERPRINT:
         required: true
-      TELEGRAM_BOT_TOKEN:
-        required: false
-      TELEGRAM_CHAT_ID:
-        required: false
 
 jobs:
   e2e-tests:
@@ -92,7 +88,36 @@ jobs:
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "bash /opt/volleyspike/reset-staging-db.sh"
 
+      - name: Report e2e started
+        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
+        continue-on-error: true
+        env:
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
+          RUN_ID: ${{ github.run_id }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg run_id "$RUN_ID" \
+              --arg service "frontend" \
+              --arg environment "staging" \
+              --arg stage "e2e" \
+              --arg status "running" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg git_sha "$GIT_SHA" \
+              --arg git_branch "$GIT_BRANCH" \
+              --arg git_message "$GIT_MESSAGE" \
+              --arg github_run_url "$RUN_URL" \
+              '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{github_run_url:$github_run_url}}')"
+
       - name: Run Playwright tests
+        id: playwright
         working-directory: tests/e2e
         env:
           BASE_URL: https://staging.volleyspike.app
@@ -113,19 +138,31 @@ jobs:
           path: tests/e2e/playwright-report/
           retention-days: 14
 
-      - name: Post results to Telegram
-        if: always() && secrets.TELEGRAM_BOT_TOKEN != ''
+      - name: Report e2e result
+        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
+        continue-on-error: true
+        env:
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
+          RUN_ID: ${{ github.run_id }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          E2E_STATUS: ${{ steps.playwright.outcome == 'success' && 'success' || 'failure' }}
         run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            STATUS="PASSED"
-          else
-            STATUS="FAILED"
-          fi
-
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="HTML" \
-            -d text="<b>E2E Tests ${STATUS}</b>
-          Environment: staging
-          Filter: ${{ inputs.test-filter || 'all' }}
-          <a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">View run</a>" || true
+          curl -s --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg run_id "$RUN_ID" \
+              --arg service "frontend" \
+              --arg environment "staging" \
+              --arg stage "e2e" \
+              --arg status "$E2E_STATUS" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg git_sha "$GIT_SHA" \
+              --arg git_branch "$GIT_BRANCH" \
+              --arg git_message "$GIT_MESSAGE" \
+              --arg github_run_url "$RUN_URL" \
+              '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{github_run_url:$github_run_url}}')"
