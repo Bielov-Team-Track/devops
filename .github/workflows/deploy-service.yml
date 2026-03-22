@@ -35,6 +35,10 @@ on:
         required: true
       SSH_FINGERPRINT:
         required: true
+      DEPLOY_DASHBOARD_API_KEY:
+        required: false
+      DEPLOY_DASHBOARD_URL:
+        required: false
 
 jobs:
   deploy:
@@ -93,10 +97,10 @@ jobs:
           done
 
       - name: Report deploy started
-        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
+        if: always() && secrets.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
         env:
-          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          DASHBOARD_URL: ${{ secrets.DEPLOY_DASHBOARD_URL }}
           API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
           RUN_ID: ${{ github.run_id }}
           SERVICE: ${{ inputs.service-name }}
@@ -442,10 +446,10 @@ jobs:
           echo "duration=${MINS}m ${SECS}s" >> "$GITHUB_OUTPUT"
 
       - name: Report deploy success
-        if: success() && vars.DEPLOY_DASHBOARD_URL != ''
+        if: success() && secrets.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
         env:
-          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          DASHBOARD_URL: ${{ secrets.DEPLOY_DASHBOARD_URL }}
           API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
           RUN_ID: ${{ github.run_id }}
           SERVICE: ${{ inputs.service-name }}
@@ -472,10 +476,10 @@ jobs:
               '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{github_run_url:$github_run_url}}')"
 
       - name: Report deploy failure
-        if: failure() && vars.DEPLOY_DASHBOARD_URL != ''
+        if: failure() && secrets.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
         env:
-          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          DASHBOARD_URL: ${{ secrets.DEPLOY_DASHBOARD_URL }}
           API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
           RUN_ID: ${{ github.run_id }}
           SERVICE: ${{ inputs.service-name }}

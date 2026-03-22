@@ -89,10 +89,10 @@ jobs:
             "bash /opt/volleyspike/reset-staging-db.sh"
 
       - name: Report e2e started
-        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
+        if: always() && secrets.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
         env:
-          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          DASHBOARD_URL: ${{ secrets.DEPLOY_DASHBOARD_URL }}
           API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
           RUN_ID: ${{ github.run_id }}
           GIT_SHA: ${{ github.sha }}
@@ -139,10 +139,10 @@ jobs:
           retention-days: 14
 
       - name: Report e2e result
-        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
+        if: always() && secrets.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
         env:
-          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          DASHBOARD_URL: ${{ secrets.DEPLOY_DASHBOARD_URL }}
           API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
           RUN_ID: ${{ github.run_id }}
           GIT_SHA: ${{ github.sha }}
