@@ -66,10 +66,10 @@ jobs:
           SOLUTION_FILE: ${{ inputs.solution-file }}
 
       - name: Report integration tests started
-        if: always() && secrets.DEPLOY_DASHBOARD_URL != ''
+        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
         env:
-          DASHBOARD_URL: ${{ secrets.DEPLOY_DASHBOARD_URL }}
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
           API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
           RUN_ID: ${{ github.run_id }}
           SERVICE: ${{ inputs.service-name }}
@@ -79,7 +79,7 @@ jobs:
           GIT_MESSAGE: ${{ github.event.head_commit.message }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          curl -s --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+          curl -fsS --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
             -H "Authorization: Bearer $API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
@@ -156,10 +156,10 @@ jobs:
           retention-days: 7
 
       - name: Report integration tests result
-        if: always() && secrets.DEPLOY_DASHBOARD_URL != ''
+        if: always() && vars.DEPLOY_DASHBOARD_URL != ''
         continue-on-error: true
         env:
-          DASHBOARD_URL: ${{ secrets.DEPLOY_DASHBOARD_URL }}
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
           API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
           RUN_ID: ${{ github.run_id }}
           SERVICE: ${{ inputs.service-name }}
@@ -174,7 +174,7 @@ jobs:
           TOTAL: ${{ steps.test-results.outputs.total || '0' }}
           COVERAGE: ${{ steps.coverage.outputs.percent || '0' }}
         run: |
-          curl -s --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+          curl -fsS --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
             -H "Authorization: Bearer $API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
