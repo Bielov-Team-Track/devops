@@ -138,16 +138,21 @@ jobs:
         env:
           SERVICE_PATH: ${{ inputs.service-path }}
         run: |
-          TRX_FILE=$(find "$SERVICE_PATH" -name "test-results.trx" | head -1)
-          if [ -f "$TRX_FILE" ]; then
+          TOTAL_PASSED=0
+          TOTAL_FAILED=0
+          TOTAL_TESTS=0
+          while IFS= read -r TRX_FILE; do
             COUNTERS=$(grep '<Counters' "$TRX_FILE" | head -1)
-            PASSED=$(echo "$COUNTERS" | grep -oP 'passed="\K[0-9]+' || echo "0")
-            FAILED=$(echo "$COUNTERS" | grep -oP 'failed="\K[0-9]+' || echo "0")
-            TOTAL=$(echo "$COUNTERS" | grep -oP 'total="\K[0-9]+' || echo "0")
-            echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
-            echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
-            echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
-          fi
+            P=$(echo "$COUNTERS" | grep -oP 'passed="\K[0-9]+' || echo "0")
+            F=$(echo "$COUNTERS" | grep -oP 'failed="\K[0-9]+' || echo "0")
+            T=$(echo "$COUNTERS" | grep -oP 'total="\K[0-9]+' || echo "0")
+            TOTAL_PASSED=$((TOTAL_PASSED + P))
+            TOTAL_FAILED=$((TOTAL_FAILED + F))
+            TOTAL_TESTS=$((TOTAL_TESTS + T))
+          done < <(find "$SERVICE_PATH" -name "test-results.trx" 2>/dev/null)
+          echo "passed=$TOTAL_PASSED" >> "$GITHUB_OUTPUT"
+          echo "failed=$TOTAL_FAILED" >> "$GITHUB_OUTPUT"
+          echo "total=$TOTAL_TESTS" >> "$GITHUB_OUTPUT"
 
       - name: Parse coverage results
         if: inputs.run-tests && always()
