@@ -83,6 +83,25 @@ services:
             retries: 3
             start_period: 30s
 
+    mailpit:
+        image: axllent/mailpit:v1.29.4
+        container_name: volleyer-mailpit
+        environment:
+            MP_MAX_MESSAGES: 500
+            MP_MAX_AGE: 24h
+        ports:
+            - "8025:8025"
+            - "1025:1025"
+        networks:
+            - volleyer_network
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD", "/mailpit", "readyz"]
+            interval: 15s
+            timeout: 5s
+            retries: 3
+            start_period: 10s
+
     debezium:
         image: debezium/server:2.4
         container_name: volleyer-debezium
@@ -111,16 +130,56 @@ services:
             - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
             - AWS_REGION=${AWS_REGION:-us-east-1}
             - DOTNET_RUNNING_IN_CONTAINER=true
+            - EmailSettings__SmtpTransportEnabled=true
+            - EmailSettings__SmtpHost=volleyer-mailpit
+            - EmailSettings__SmtpPort=1025
+            - EmailSettings__SmtpUseTls=false
+            - Urls__Web=http://localhost:3000
         ports:
             - "5005:5005" # HTTP
             - "10000:10000" # Debugger
         volumes:
             - ../../microservices/auth-service:/app
+            # Anonymous volume overlays: hide host bin/obj so MSBuild doesn't
+            # pick up stale artifacts alongside container builds in /tmp/.
+            # Without these, NETSDK1022 "duplicate Content items" errors occur.
+            - /app/Auth/bin
+            - /app/Auth/obj
+            - /app/Auth.Domain/bin
+            - /app/Auth.Domain/obj
+            - /app/Auth.Infrastructure/bin
+            - /app/Auth.Infrastructure/obj
+            - /app/Auth.Services/bin
+            - /app/Auth.Services/obj
+            - /app/Auth.Tests/bin
+            - /app/Auth.Tests/obj
+            - /app/Auth.Tests.Integration/bin
+            - /app/Auth.Tests.Integration/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Testing/bin
+            - /app/shared/Shared.Testing/obj
         networks:
             - volleyer_network
         restart: unless-stopped
         depends_on:
             postgres:
+                condition: service_healthy
+            mailpit:
                 condition: service_healthy
 
     events-service:
