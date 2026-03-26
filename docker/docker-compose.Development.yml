@@ -200,6 +200,36 @@ services:
             - "10001:10001" # Debugger
         volumes:
             - ../../microservices/events-service:/app
+            - /app/Events/bin
+            - /app/Events/obj
+            - /app/Events.Application/bin
+            - /app/Events.Application/obj
+            - /app/Events.Domain/bin
+            - /app/Events.Domain/obj
+            - /app/Events.Infrastructure/bin
+            - /app/Events.Infrastructure/obj
+            - /app/Events.Tests/bin
+            - /app/Events.Tests/obj
+            - /app/Events.Tests.Integration/bin
+            - /app/Events.Tests.Integration/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Testing/bin
+            - /app/shared/Shared.Testing/obj
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -226,6 +256,38 @@ services:
             - "10002:10002" # Debugger
         volumes:
             - ../../microservices/profiles-service:/app
+            # Anonymous volume overlays: hide host bin/obj so MSBuild doesn't
+            # pick up stale artifacts alongside container builds in /tmp/.
+            - /app/Profiles/bin
+            - /app/Profiles/obj
+            - /app/Profiles.Application/bin
+            - /app/Profiles.Application/obj
+            - /app/Profiles.Domain/bin
+            - /app/Profiles.Domain/obj
+            - /app/Profiles.Infrastructure/bin
+            - /app/Profiles.Infrastructure/obj
+            - /app/Profiles.Tests.Unit/bin
+            - /app/Profiles.Tests.Unit/obj
+            - /app/Profiles.Tests.Integration/bin
+            - /app/Profiles.Tests.Integration/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Testing/bin
+            - /app/shared/Shared.Testing/obj
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -251,6 +313,36 @@ services:
             - "10005:10005" # Debugger
         volumes:
             - ../../microservices/clubs-service:/app
+            - /app/Clubs/bin
+            - /app/Clubs/obj
+            - /app/Clubs.Application/bin
+            - /app/Clubs.Application/obj
+            - /app/Clubs.Domain/bin
+            - /app/Clubs.Domain/obj
+            - /app/Clubs.Infrastructure/bin
+            - /app/Clubs.Infrastructure/obj
+            - /app/Clubs.Tests.Unit/bin
+            - /app/Clubs.Tests.Unit/obj
+            - /app/Clubs.Tests.Integration/bin
+            - /app/Clubs.Tests.Integration/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Testing/bin
+            - /app/shared/Shared.Testing/obj
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -278,6 +370,38 @@ services:
             - "10003:10003" # Debugger
         volumes:
             - ../../microservices/messages-service:/app
+            - /app/Messages/bin
+            - /app/Messages/obj
+            - /app/Messages.Application/bin
+            - /app/Messages.Application/obj
+            - /app/Messages.Domain/bin
+            - /app/Messages.Domain/obj
+            - /app/Messages.Infrastructure/bin
+            - /app/Messages.Infrastructure/obj
+            - /app/Messages.SocketServer/bin
+            - /app/Messages.SocketServer/obj
+            - /app/Messages.Tests/bin
+            - /app/Messages.Tests/obj
+            - /app/Messages.Tests.Integration/bin
+            - /app/Messages.Tests.Integration/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Testing/bin
+            - /app/shared/Shared.Testing/obj
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -303,6 +427,36 @@ services:
             - "10006:10006" # Debugger
         volumes:
             - ../../microservices/notifications-service:/app
+            - /app/Notifications/bin
+            - /app/Notifications/obj
+            - /app/Notifications.Application/bin
+            - /app/Notifications.Application/obj
+            - /app/Notifications.Domain/bin
+            - /app/Notifications.Domain/obj
+            - /app/Notifications.Infrastructure/bin
+            - /app/Notifications.Infrastructure/obj
+            - /app/Notifications.Tests.Unit/bin
+            - /app/Notifications.Tests.Unit/obj
+            - /app/Notifications.Tests.Integration/bin
+            - /app/Notifications.Tests.Integration/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Testing/bin
+            - /app/shared/Shared.Testing/obj
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -332,6 +486,36 @@ services:
             - "10007:10007" # Debugger
         volumes:
             - ../../microservices/social-service:/app
+            - /app/Social/bin
+            - /app/Social/obj
+            - /app/Social.Application/bin
+            - /app/Social.Application/obj
+            - /app/Social.Domain/bin
+            - /app/Social.Domain/obj
+            - /app/Social.Infrastructure/bin
+            - /app/Social.Infrastructure/obj
+            - /app/Social.Tests.Unit/bin
+            - /app/Social.Tests.Unit/obj
+            - /app/Social.Tests.Integration/bin
+            - /app/Social.Tests.Integration/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Testing/bin
+            - /app/shared/Shared.Testing/obj
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -361,6 +545,36 @@ services:
             - "10009:10009" # Debugger
         volumes:
             - ../../microservices/coaching-service:/app
+            - /app/Coaching/bin
+            - /app/Coaching/obj
+            - /app/Coaching.Application/bin
+            - /app/Coaching.Application/obj
+            - /app/Coaching.Domain/bin
+            - /app/Coaching.Domain/obj
+            - /app/Coaching.Infrastructure/bin
+            - /app/Coaching.Infrastructure/obj
+            - /app/Coaching.Tests.Unit/bin
+            - /app/Coaching.Tests.Unit/obj
+            - /app/Coaching.Tests.Integration/bin
+            - /app/Coaching.Tests.Integration/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Testing/bin
+            - /app/shared/Shared.Testing/obj
         networks:
             - volleyer_network
         restart: unless-stopped
@@ -388,6 +602,36 @@ services:
             - "10008:10008" # Debugger
         volumes:
             - ../../microservices/payments-service:/app
+            - /app/Payments/bin
+            - /app/Payments/obj
+            - /app/Payments.Application/bin
+            - /app/Payments.Application/obj
+            - /app/Payments.Domain/bin
+            - /app/Payments.Domain/obj
+            - /app/Payments.Infrastructure/bin
+            - /app/Payments.Infrastructure/obj
+            - /app/Payments.Tests.Unit/bin
+            - /app/Payments.Tests.Unit/obj
+            - /app/Payments.Tests.Integration/bin
+            - /app/Payments.Tests.Integration/obj
+            - /app/shared/Shared/bin
+            - /app/shared/Shared/obj
+            - /app/shared/Shared.Contracts/bin
+            - /app/shared/Shared.Contracts/obj
+            - /app/shared/Shared.DataAccess/bin
+            - /app/shared/Shared.DataAccess/obj
+            - /app/shared/Shared.Logging/bin
+            - /app/shared/Shared.Logging/obj
+            - /app/shared/Shared.Messaging/bin
+            - /app/shared/Shared.Messaging/obj
+            - /app/shared/Shared.Messaging.Contracts/bin
+            - /app/shared/Shared.Messaging.Contracts/obj
+            - /app/shared/Shared.Microservices/bin
+            - /app/shared/Shared.Microservices/obj
+            - /app/shared/Shared.Services/bin
+            - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Testing/bin
+            - /app/shared/Shared.Testing/obj
         networks:
             - volleyer_network
         restart: unless-stopped
