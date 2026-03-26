@@ -422,6 +422,10 @@ services:
             - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
             - AWS_REGION=${AWS_REGION:-us-east-1}
             - DOTNET_RUNNING_IN_CONTAINER=true
+            - EmailSettings__SmtpTransportEnabled=true
+            - EmailSettings__SmtpHost=volleyer-mailpit
+            - EmailSettings__SmtpPort=1025
+            - EmailSettings__SmtpUseTls=false
         ports:
             - "5030:5030" # HTTP
             - "10006:10006" # Debugger
