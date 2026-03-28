@@ -9,11 +9,7 @@
     }
 }
 
-:80 {
-    request_body {
-        max_size 10MB
-    }
-
+(common_headers) {
     header {
         X-Content-Type-Options nosniff
         X-Robots-Tag "noindex, nofollow"
@@ -23,37 +19,33 @@
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
         -Server
     }
+}
 
-    # TODO: Rate limiting for /auth/* endpoints.
-    # Caddy's rate_limit module is not included in the standard binary and requires a custom build.
-    # As an interim measure, use Cloudflare rate limiting rules for authentication endpoints.
-    # When a custom Caddy build is feasible, add rate_limit directives here for /auth/* routes.
+# API domain — routes to backend microservices
+staging-api.volleyspike.app:80 {
+    import common_headers
+
+    request_body {
+        max_size 10MB
+    }
 
     # OpenTelemetry: browser trace export -> OTel Collector
-    # Note: browser telemetry is inherently untrusted. Rate limiting and payload
-    # size restrictions mitigate abuse but cannot prevent crafted fake traces.
-    @post_otel {
-        method POST
+    @otel_allowed {
+        method POST OPTIONS
         path /otel/*
     }
-    handle @post_otel {
+    handle @otel_allowed {
         request_body {
             max_size 256KB
         }
         uri strip_prefix /otel
         reverse_proxy otel-collector:4318
     }
-    # Reject non-POST requests to /otel
     handle /otel/* {
         respond 405
     }
 
-    # SignalR WebSocket hubs (more specific paths, matched before generic service routes)
-    # Using `handle` + `uri strip_prefix` instead of `handle_path` to strip only the
-    # service prefix while preserving `/hubs/...` in the forwarded path.
-    #
-    # Currently active SignalR hubs: events, messages, notifications
-    # Pre-provisioned for future use: profiles, social, payments
+    # SignalR WebSocket hubs
     handle /events/hubs/* {
         uri strip_prefix /events
         reverse_proxy events-service:5010 {
@@ -154,7 +146,41 @@
         reverse_proxy payments-service:5050
     }
 
-    # Default: route to frontend container
+    # Fallback: 404 for unknown API routes
+    handle {
+        respond "Not Found" 404
+    }
+
+    encode zstd gzip {
+        minimum_length 256
+    }
+}
+
+# Frontend domain — routes to Next.js
+staging.volleyspike.app:80 staging-app.volleyspike.app:80 {
+    import common_headers
+
+    request_body {
+        max_size 10MB
+    }
+
+    # OpenTelemetry: browser trace export -> OTel Collector
+    @otel_allowed {
+        method POST OPTIONS
+        path /otel/*
+    }
+    handle @otel_allowed {
+        request_body {
+            max_size 256KB
+        }
+        uri strip_prefix /otel
+        reverse_proxy otel-collector:4318
+    }
+    handle /otel/* {
+        respond 405
+    }
+
+    # Everything else -> Next.js frontend
     handle {
         reverse_proxy frontend:3000
     }
