@@ -110,6 +110,11 @@ services:
   auth-service:
     restart: unless-stopped
     env_file: [.env.common, .env.auth]
+    environment:
+      RateLimiting__Login__PermitLimit: 100
+      RateLimiting__Register__PermitLimit: 100
+      RateLimiting__ForgotPassword__PermitLimit: 100
+      RateLimiting__General__PermitLimit: 1000
     depends_on:
       mailpit:
         condition: service_healthy
@@ -233,6 +238,28 @@ services:
         limits:
           cpus: '0.5'
           memory: 384M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.147.0
+    container_name: volleyspike-otel-collector
+    command: ['--config=/etc/otelcol/config.yml']
+    volumes:
+      - ./otel-collector/otel-collector-config.yml:/etc/otelcol/config.yml:ro
+    environment:
+      - GOMEMLIMIT=170MiB
+      - DEPLOYMENT_ENVIRONMENT=staging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - volleyer-network
     logging:
       driver: json-file
       options:
