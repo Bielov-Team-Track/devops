@@ -115,6 +115,7 @@ services:
       RateLimiting__Register__PermitLimit: 100
       RateLimiting__ForgotPassword__PermitLimit: 100
       RateLimiting__General__PermitLimit: 1000
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       mailpit:
         condition: service_healthy
@@ -132,6 +133,8 @@ services:
   events-service:
     restart: unless-stopped
     env_file: [.env.common, .env.events]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -146,6 +149,8 @@ services:
   clubs-service:
     restart: unless-stopped
     env_file: [.env.common, .env.clubs]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -160,6 +165,8 @@ services:
   profiles-service:
     restart: unless-stopped
     env_file: [.env.common, .env.profiles]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -174,6 +181,8 @@ services:
   messages-service:
     restart: unless-stopped
     env_file: [.env.common, .env.messages]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -188,6 +197,8 @@ services:
   notifications-service:
     restart: unless-stopped
     env_file: [.env.common, .env.notifications]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       mailpit:
         condition: service_healthy
@@ -205,6 +216,8 @@ services:
   social-service:
     restart: unless-stopped
     env_file: [.env.common, .env.social]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -219,6 +232,8 @@ services:
   coaching-service:
     restart: unless-stopped
     env_file: [.env.common, .env.coaching]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -233,6 +248,8 @@ services:
   payments-service:
     restart: unless-stopped
     env_file: [.env.common, .env.payments]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -270,6 +287,8 @@ services:
     profiles: []
     restart: unless-stopped
     env_file: [.env.common, .env.frontend]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:

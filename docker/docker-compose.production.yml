@@ -89,6 +89,8 @@ services:
     ports:
       - "10.10.0.2:15005:15005"
     env_file: [.env.common, .env.auth]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -105,6 +107,8 @@ services:
     ports:
       - "10.10.0.2:15010:15010"
     env_file: [.env.common, .env.events]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -121,6 +125,8 @@ services:
     ports:
       - "10.10.0.2:15020:15020"
     env_file: [.env.common, .env.clubs]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -137,6 +143,8 @@ services:
     ports:
       - "10.10.0.2:15170:15170"
     env_file: [.env.common, .env.profiles]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -153,6 +161,8 @@ services:
     ports:
       - "10.10.0.2:15180:15180"
     env_file: [.env.common, .env.messages]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -169,6 +179,8 @@ services:
     ports:
       - "10.10.0.2:15030:15030"
     env_file: [.env.common, .env.notifications]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -185,6 +197,8 @@ services:
     ports:
       - "10.10.0.2:15040:15040"
     env_file: [.env.common, .env.social]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -201,6 +215,8 @@ services:
     ports:
       - "10.10.0.2:15060:15060"
     env_file: [.env.common, .env.coaching]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -217,6 +233,8 @@ services:
     ports:
       - "10.10.0.2:15050:15050"
     env_file: [.env.common, .env.payments]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -238,6 +256,7 @@ services:
       - volleyer-network
     environment:
       - GOMEMLIMIT=200MiB
+      - DEPLOYMENT_ENVIRONMENT=production
     restart: unless-stopped
     deploy:
       resources:
@@ -256,6 +275,8 @@ services:
     env_file: [.env.common, .env.frontend]
     ports:
       - "127.0.0.1:3000:3000"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
