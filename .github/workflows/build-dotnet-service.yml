@@ -126,6 +126,36 @@ jobs:
         env:
           SOLUTION_FILE: ${{ inputs.solution-file }}
 
+      - name: Report unit tests started
+        if: inputs.run-tests && vars.DEPLOY_DASHBOARD_URL != ''
+        continue-on-error: true
+        env:
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
+          RUN_ID: ${{ github.run_id }}
+          SERVICE: ${{ inputs.service-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -fsS --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg run_id "$RUN_ID" \
+              --arg service "$SERVICE" \
+              --arg environment "$ENVIRONMENT" \
+              --arg stage "unit_tests" \
+              --arg status "running" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg git_sha "$GIT_SHA" \
+              --arg git_branch "$GIT_BRANCH" \
+              --arg git_message "$GIT_MESSAGE" \
+              --arg github_run_url "$RUN_URL" \
+              '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{github_run_url:$github_run_url}}')"
+
       - name: Run unit tests
         id: tests
         if: inputs.run-tests
@@ -229,6 +259,36 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report docker started
+        if: inputs.push-docker-image && vars.DEPLOY_DASHBOARD_URL != ''
+        continue-on-error: true
+        env:
+          DASHBOARD_URL: ${{ vars.DEPLOY_DASHBOARD_URL }}
+          API_KEY: ${{ secrets.DEPLOY_DASHBOARD_API_KEY }}
+          RUN_ID: ${{ github.run_id }}
+          SERVICE: ${{ inputs.service-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -fsS --max-time 10 -X POST "$DASHBOARD_URL/api/events" \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg run_id "$RUN_ID" \
+              --arg service "$SERVICE" \
+              --arg environment "$ENVIRONMENT" \
+              --arg stage "docker" \
+              --arg status "running" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg git_sha "$GIT_SHA" \
+              --arg git_branch "$GIT_BRANCH" \
+              --arg git_message "$GIT_MESSAGE" \
+              --arg github_run_url "$RUN_URL" \
+              '{run_id:$run_id,service:$service,environment:$environment,stage:$stage,status:$status,timestamp:$timestamp,git_sha:$git_sha,git_branch:$git_branch,git_message:$git_message,details:{github_run_url:$github_run_url}}')"
 
       - name: Build and push Docker image
         id: docker-push

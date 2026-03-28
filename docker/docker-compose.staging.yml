@@ -51,6 +51,7 @@ services:
     env_file: .env.common
     ports:
       - "127.0.0.1:5432:5432"
+      - "10.10.0.3:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U volleyer_user"]
       interval: 30s
@@ -90,6 +91,8 @@ services:
   rabbitmq:
     restart: unless-stopped
     env_file: .env.common
+    ports:
+      - "10.10.0.3:15692:15692"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 30s
@@ -110,6 +113,14 @@ services:
   auth-service:
     restart: unless-stopped
     env_file: [.env.common, .env.auth]
+    ports:
+      - "10.10.0.3:15005:15005"
+    environment:
+      RateLimiting__Login__PermitLimit: 100
+      RateLimiting__Register__PermitLimit: 100
+      RateLimiting__ForgotPassword__PermitLimit: 100
+      RateLimiting__General__PermitLimit: 1000
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       mailpit:
         condition: service_healthy
@@ -127,6 +138,10 @@ services:
   events-service:
     restart: unless-stopped
     env_file: [.env.common, .env.events]
+    ports:
+      - "10.10.0.3:15010:15010"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -141,6 +156,10 @@ services:
   clubs-service:
     restart: unless-stopped
     env_file: [.env.common, .env.clubs]
+    ports:
+      - "10.10.0.3:15020:15020"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -155,6 +174,10 @@ services:
   profiles-service:
     restart: unless-stopped
     env_file: [.env.common, .env.profiles]
+    ports:
+      - "10.10.0.3:15170:15170"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -169,6 +192,10 @@ services:
   messages-service:
     restart: unless-stopped
     env_file: [.env.common, .env.messages]
+    ports:
+      - "10.10.0.3:15180:15180"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -183,6 +210,10 @@ services:
   notifications-service:
     restart: unless-stopped
     env_file: [.env.common, .env.notifications]
+    ports:
+      - "10.10.0.3:15030:15030"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       mailpit:
         condition: service_healthy
@@ -200,6 +231,10 @@ services:
   social-service:
     restart: unless-stopped
     env_file: [.env.common, .env.social]
+    ports:
+      - "10.10.0.3:15040:15040"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -214,6 +249,10 @@ services:
   coaching-service:
     restart: unless-stopped
     env_file: [.env.common, .env.coaching]
+    ports:
+      - "10.10.0.3:15060:15060"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -228,6 +267,10 @@ services:
   payments-service:
     restart: unless-stopped
     env_file: [.env.common, .env.payments]
+    ports:
+      - "10.10.0.3:15050:15050"
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
@@ -239,15 +282,60 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.147.0
+    container_name: volleyspike-otel-collector
+    command: ['--config=/etc/otelcol/config.yml']
+    volumes:
+      - ./otel-collector/otel-collector-config.yml:/etc/otelcol/config.yml:ro
+    environment:
+      - GOMEMLIMIT=170MiB
+      - DEPLOYMENT_ENVIRONMENT=staging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - volleyer-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   frontend:
     profiles: []
     restart: unless-stopped
     env_file: [.env.common, .env.frontend]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     deploy:
       resources:
         limits:
           cpus: '0.5'
           memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  alloy:
+    image: grafana/alloy:v1.6.1
+    container_name: volleyspike-alloy
+    restart: unless-stopped
+    command: ['run', '--server.http.listen-addr=0.0.0.0:12345', '/etc/alloy/config.alloy']
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    networks:
+      - volleyer-network
     logging:
       driver: json-file
       options:
