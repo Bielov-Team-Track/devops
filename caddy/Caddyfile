@@ -36,18 +36,18 @@
     # OpenTelemetry: browser trace export -> OTel Collector
     # Note: browser telemetry is inherently untrusted. Rate limiting and payload
     # size restrictions mitigate abuse but cannot prevent crafted fake traces.
-    @post_otel {
-        method POST
+    @otel_allowed {
+        method POST OPTIONS
         path /otel/*
     }
-    handle @post_otel {
+    handle @otel_allowed {
         request_body {
             max_size 256KB
         }
         uri strip_prefix /otel
         reverse_proxy otel-collector:4318
     }
-    # Reject non-POST requests to /otel
+    # Reject other methods (GET, PUT, etc.) to /otel
     handle /otel/* {
         respond 405
     }
