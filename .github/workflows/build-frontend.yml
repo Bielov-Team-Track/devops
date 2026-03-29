@@ -82,10 +82,6 @@ jobs:
         if: inputs.push-docker-image
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
-      - name: Set up QEMU
-        if: inputs.push-docker-image
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
-
       - name: Set up Docker Buildx
         if: inputs.push-docker-image
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
@@ -135,7 +131,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/volleyer-frontend:${{ github.sha }}
             ghcr.io/${{ env.OWNER_LC }}/volleyer-frontend:${{ github.ref_name }}
