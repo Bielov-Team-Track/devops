@@ -102,21 +102,6 @@ services:
             retries: 3
             start_period: 10s
 
-    debezium:
-        image: debezium/server:2.4
-        container_name: volleyer-debezium
-        depends_on:
-            postgres:
-                condition: service_healthy
-            rabbitmq:
-                condition: service_healthy
-        volumes:
-            - ./debezium:/debezium/conf
-            - debezium_data:/debezium/data
-        networks:
-            - volleyer_network
-        restart: unless-stopped
-
     auth-service:
         build:
             context: ../../microservices/auth-service
@@ -690,8 +675,6 @@ volumes:
     redis_data:
         driver: local
     rabbitmq_data:
-        driver: local
-    debezium_data:
         driver: local
     nginx_logs:
         driver: local
