@@ -48,20 +48,6 @@ services:
       retries: 3
       start_period: 30s
 
-  debezium:
-    image: debezium/server:2.4
-    profiles: ["development"]
-    volumes:
-      - ./debezium:/debezium/conf
-      - debezium_data:/debezium/data
-    networks:
-      - volleyer-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-
   auth-service:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bielov-team-track}/volleyer-auth-service:${AUTH_SERVICE_TAG:-main}
     networks:
@@ -158,8 +144,6 @@ volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
-  debezium_data:
-
 networks:
   volleyer-network:
     driver: bridge
