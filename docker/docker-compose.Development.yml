@@ -637,6 +637,7 @@ services:
         image: otel/opentelemetry-collector-contrib:0.147.0
         container_name: otel-collector
         command: ['--config=/etc/otelcol/config.yml']
+        restart: unless-stopped
         volumes:
             - ./otel-collector-config.dev.yml:/etc/otelcol/config.yml:ro
         networks:
