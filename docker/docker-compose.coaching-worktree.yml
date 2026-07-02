@@ -1,0 +1,9 @@
+# TEMPORARY local override: run coaching-service from the Plan 1 worktree
+# (feature/coaching-run-engine) instead of microservices/coaching-service, so the
+# training-plan RUN endpoints + TrainingRunHub are served by the dev gateway for
+# on-device verification. Remove this file (and recreate coaching-service from the
+# base compose) to revert. Source: training-plans Plan 3 on-device verification.
+services:
+  coaching-service:
+    volumes:
+      - ../../.worktrees/coaching-run-engine:/app
