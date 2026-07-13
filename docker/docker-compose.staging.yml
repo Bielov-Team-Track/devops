@@ -116,6 +116,7 @@ services:
     ports:
       - "10.10.0.3:15005:15005"
     environment:
+      Urls__Web: "https://staging.volleyspike.app"
       RateLimiting__Login__PermitLimit: 100
       RateLimiting__Register__PermitLimit: 100
       RateLimiting__ForgotPassword__PermitLimit: 100

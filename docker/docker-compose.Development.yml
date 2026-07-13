@@ -109,7 +109,8 @@ services:
         container_name: volleyer-auth-dev
         environment:
             - ASPNETCORE_ENVIRONMENT=Development
-            - ASPNETCORE_URLS=http://+:5005
+            # ASPNETCORE_URLS intentionally unset so Kestrel binds the endpoints from
+            # appsettings.json (HTTP on 5005, gRPC HTTP/2 on 5006).
             - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
             - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
             - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
@@ -119,9 +120,10 @@ services:
             - EmailSettings__SmtpHost=volleyer-mailpit
             - EmailSettings__SmtpPort=1025
             - EmailSettings__SmtpUseTls=false
-            - Urls__Web=http://localhost:3000
+            - Urls__Web=https://dev.volleyspike.app
         ports:
             - "5005:5005" # HTTP
+            - "5006:5006" # gRPC (HTTP/2)
             - "10000:10000" # Debugger
         volumes:
             - ../../microservices/auth-service:/app
@@ -401,7 +403,7 @@ services:
         container_name: volleyer-notifications-dev
         environment:
             - ASPNETCORE_ENVIRONMENT=Development
-            - ASPNETCORE_URLS=http://+:5030
+            - ASPNETCORE_URLS=http://+:5030;http://+:5031
             - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
             - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
             - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
@@ -413,6 +415,7 @@ services:
             - EmailSettings__SmtpUseTls=false
         ports:
             - "5030:5030" # HTTP
+            - "5031:5031" # gRPC
             - "10006:10006" # Debugger
         volumes:
             - ../../microservices/notifications-service:/app
@@ -634,6 +637,7 @@ services:
         image: otel/opentelemetry-collector-contrib:0.147.0
         container_name: otel-collector
         command: ['--config=/etc/otelcol/config.yml']
+        restart: unless-stopped
         volumes:
             - ./otel-collector-config.dev.yml:/etc/otelcol/config.yml:ro
         networks:
