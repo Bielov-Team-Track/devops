@@ -190,6 +190,10 @@ api.volleyspike.app {
 www.volleyspike.app {
     tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
 
+    # Caddy compiles this block in the REVERSE of source order: `handle
+    # /_next/static/*` matches first, then `respond /api/health`, then the
+    # bare `reverse_proxy` last as the catch-all (verified with `caddy adapt`
+    # plus a live container). Keep that in mind before adding a 4th directive.
     reverse_proxy frontend:3000
     respond /api/health 404
     handle /_next/static/* {
