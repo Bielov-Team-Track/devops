@@ -1,0 +1,24 @@
+[Unit]
+Description=Docker Container Health Monitor with Telegram Alerts
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+EnvironmentFile=/opt/volleyspike/.env.monitor
+ExecStart=/opt/volleyspike/docker-monitor.sh
+Restart=always
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/volleyspike/.env.monitor
+PrivateTmp=true
+
+# Needs docker socket access
+SupplementaryGroups=docker
+
+[Install]
+WantedBy=multi-user.target
