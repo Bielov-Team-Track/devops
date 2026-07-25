@@ -24,12 +24,31 @@ day-0 OS setup and firewall it always depended on but never version-controlled.
 
 When provisioning a **replacement** server for an environment that already
 has live secrets, copy the existing `.env*` files into `/opt/volleyspike/`
-first, then run `setup.sh` with `SKIP_SECRET_GENERATION=1` set in the
-environment. **This is mandatory, not optional**: without it, `setup.sh`
-regenerates `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `RABBITMQ_PASSWORD`, and
-`JWT_SECRET`, and rewrites every per-service env file — desyncing from a
-restored database (still using the old Postgres password) and invalidating
-every issued JWT. Every write step guarded by this flag logs that it's
+first, then run:
+
+```bash
+SKIP_SECRET_GENERATION=1 ./setup.sh --force
+```
+
+**Both flags are required, and neither substitutes for the other — they gate
+two independent checks:**
+
+- `--force` bypasses `setup.sh`'s top-of-file guard, which otherwise exits 1
+  as soon as it sees `$DEPLOY_PATH/.env` already present (which it will be,
+  since you just copied it there).
+- `SKIP_SECRET_GENERATION=1` bypasses the actual secret/env-file **write**
+  steps (10, 11, 12, 12b, 13, 13b) further down the script, so the copied
+  files are left alone instead of being regenerated.
+
+**`--force` alone is the dangerous case.** It only clears the guard; without
+`SKIP_SECRET_GENERATION=1` the script proceeds straight into regenerating
+`POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `RABBITMQ_PASSWORD`, and `JWT_SECRET`
+and overwriting every per-service env file — desyncing from a restored
+database (still using the old Postgres password) and invalidating every
+issued JWT. This is exactly what the guard's own error text warns about if
+you hit it without `SKIP_SECRET_GENERATION=1` set.
+
+Every write step guarded by `SKIP_SECRET_GENERATION=1` logs that it's
 reusing the copied file instead of overwriting it.
 
 ## Firewall

@@ -8,12 +8,18 @@ DEPLOY_PATH="/opt/volleyspike"
 # --- Idempotency guard ---
 if [ -f "$DEPLOY_PATH/.env" ]; then
   if [ "${1:-}" != "--force" ]; then
-    echo "ERROR: $DEPLOY_PATH/.env already exists. Re-running would overwrite passwords."
-    echo "Running services still use the old credentials from Docker volumes."
-    echo "Pass --force to overwrite (you will need to recreate volumes too)."
+    echo "ERROR: $DEPLOY_PATH/.env already exists."
+    echo "  Fresh re-provisioning: re-run with --force (regenerates all secrets)."
+    echo "  Migrating an existing environment: copy the old .env* files into $DEPLOY_PATH,"
+    echo "  then re-run with SKIP_SECRET_GENERATION=1 ./setup.sh --force (--force alone"
+    echo "  still regenerates secrets and desyncs a restored environment)."
     exit 1
   fi
-  echo "WARNING: --force passed, overwriting existing environment files."
+  if [ "${SKIP_SECRET_GENERATION:-0}" = "1" ]; then
+    echo "WARNING: --force passed with SKIP_SECRET_GENERATION=1 — reusing existing secrets, guard bypassed only."
+  else
+    echo "WARNING: --force passed, overwriting existing environment files and regenerating secrets."
+  fi
 fi
 
 echo "=== VolleySpike Server Setup ==="
