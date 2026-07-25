@@ -17,6 +17,15 @@ apt-get install -y -qq ca-certificates curl gnupg nftables wireguard-tools \
 
 systemctl enable --now nftables
 
+# Docker refuses to create its default bridge network when IPv4 forwarding is
+# off, and the runtime value it sets does not survive a reboot. Persisting it
+# also stops Docker from setting the filter-FORWARD policy to DROP, which it
+# only does when it has to enable forwarding itself.
+if [ ! -f /etc/sysctl.d/99-docker-ip-forward.conf ]; then
+  echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-docker-ip-forward.conf
+  sysctl --system >/dev/null
+fi
+
 # Docker from the official repo (never snap).
 if ! command -v docker >/dev/null; then
   install -m 0755 -d /etc/apt/keyrings
@@ -45,11 +54,14 @@ https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo "$VERSION_C
 fi
 
 # Pin the firewall backend. An unattended flip is what caused the 17-day outage.
+# ip-forward-no-drop: belt-and-braces so Docker cannot reintroduce a policy-drop
+# filter-FORWARD chain even if the sysctl drop-in above is ever lost.
 mkdir -p /etc/docker
 if [ ! -f /etc/docker/daemon.json ]; then
   cat > /etc/docker/daemon.json <<'JSON'
 {
   "firewall-backend": "nftables",
+  "ip-forward-no-drop": true,
   "log-driver": "json-file",
   "log-opts": { "max-size": "50m", "max-file": "3" }
 }

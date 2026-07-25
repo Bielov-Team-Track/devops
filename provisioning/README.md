@@ -62,6 +62,17 @@ reusing the copied file instead of overwriting it.
   isolation. Do not add "defensive" rules there: a second forward chain at
   `policy drop` is what silently blackholed every Prometheus scrape for 17
   days on the previous iptables-based setup. See the comments in the file.
+- `net.ipv4.ip_forward=1` **must be persisted before Docker's first start** —
+  `bootstrap.sh` writes `/etc/sysctl.d/99-docker-ip-forward.conf` ahead of
+  the Docker install for exactly this reason. Do not remove that file. If
+  forwarding isn't already enabled when Docker starts, two things go wrong:
+  Docker refuses to create its default bridge network at all (confirmed by
+  rebooting the target box: `dockerd` fails outright with "IPv4 forwarding
+  is disabled"), and on any run where Docker *does* enable forwarding itself,
+  it also sets the legacy `filter-FORWARD` chain to `policy drop` — the exact
+  failure mode this task exists to eliminate. `daemon.json`'s
+  `ip-forward-no-drop: true` is a second, independent layer against that same
+  policy-drop chain in case this sysctl file is ever lost.
 
 ## WireGuard IPs
 
