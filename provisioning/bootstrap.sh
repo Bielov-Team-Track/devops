@@ -15,16 +15,44 @@ apt-get update -qq
 apt-get install -y -qq ca-certificates curl gnupg nftables wireguard-tools \
                        rsync jq
 
-systemctl enable --now nftables
+# Install and apply the real ruleset before enabling the unit. Safe to do
+# before wg0 exists: `iifname "wg0"` is a plain string match, not an
+# interface lookup, so it loads fine with no such interface yet. Skipping
+# this and only enabling the service would leave /etc/nftables.conf at the
+# distro default (no policy = accept, no Cloudflare gate) until first apply.
+install -m 0755 "$(dirname "$0")/nftables.conf" /etc/nftables.conf
+systemctl enable nftables
+nft -f /etc/nftables.conf
+
+# Cloudflare IP-range refresh: keeps the nftables allowlist sets current so a
+# stale list doesn't silently reject legitimate edge traffic. Wired in after
+# the nftables table above so its first run (or an early catch-up run under
+# the timer's Persistent=true) always finds `inet volleyspike` already there.
+install -m 0755 "$(dirname "$0")/scripts/refresh-cloudflare-nft.sh" \
+  /usr/local/sbin/refresh-cloudflare-nft.sh
+install -m 0644 "$(dirname "$0")/systemd/cloudflare-nft-refresh.service" \
+  /etc/systemd/system/cloudflare-nft-refresh.service
+install -m 0644 "$(dirname "$0")/systemd/cloudflare-nft-refresh.timer" \
+  /etc/systemd/system/cloudflare-nft-refresh.timer
+systemctl daemon-reload
+systemctl enable --now cloudflare-nft-refresh.timer
 
 # Docker refuses to create its default bridge network when IPv4 forwarding is
 # off, and the runtime value it sets does not survive a reboot. Persisting it
 # also stops Docker from setting the filter-FORWARD policy to DROP, which it
 # only does when it has to enable forwarding itself.
+mkdir -p /etc/sysctl.d
 if [ ! -f /etc/sysctl.d/99-docker-ip-forward.conf ]; then
   echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-docker-ip-forward.conf
   sysctl --system >/dev/null
 fi
+
+# Container port publishes bind WireGuard addresses. If Docker starts before
+# wg0 exists, every wg-bound port publish fails at container start — placed
+# before Docker's own install/first-start below so it's respected immediately.
+install -d /etc/systemd/system/docker.service.d
+install -m 0644 "$(dirname "$0")/systemd/10-wireguard-ordering.conf" \
+  /etc/systemd/system/docker.service.d/10-wireguard-ordering.conf
 
 # Docker from the official repo (never snap).
 if ! command -v docker >/dev/null; then
@@ -71,6 +99,12 @@ fi
 
 # Hold docker so unattended-upgrades cannot restart it or change its backend.
 apt-mark hold docker-ce docker-ce-cli containerd.io
+
+# 00- sorts before cloud-init's 50-cloud-init.conf (sshd takes the first
+# value per keyword); cloud-init rewrites that file with PasswordAuthentication
+# yes on every boot. Without this, password SSH stays open on the one
+# world-reachable port.
+install -m 0644 "$(dirname "$0")/ssh/00-hardening.conf" /etc/ssh/sshd_config.d/00-hardening.conf
 
 id -u deploy >/dev/null 2>&1 || useradd -m -s /bin/bash -G docker deploy
 install -d -m 0700 -o deploy -g deploy /home/deploy/.ssh

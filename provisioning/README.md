@@ -7,18 +7,60 @@ day-0 OS setup and firewall it always depended on but never version-controlled.
 
 1. **`bootstrap.sh`** (as root) — day-0 OS setup: purges `ufw`, installs
    nftables/Docker/WireGuard tools, pins Docker's firewall backend to
-   nftables, creates the `deploy` user, provisions swap. Idempotent — safe to
-   re-run.
-2. **`nftables.conf`** — apply with `nft -f nftables.conf` (or `nft -c -f
-   nftables.conf` to check syntax without applying). Not loaded by
-   `bootstrap.sh` automatically; apply it once WireGuard's `wg0` interface
-   exists, since the input chain references it.
-3. **WireGuard** — bring up `wg0` before or alongside the firewall step; the
-   ruleset's SSH-over-VPN and `iifname "wg0" accept` rules assume it's
-   present.
+   nftables, installs and applies `nftables.conf` to `/etc/nftables.conf`,
+   creates the `deploy` user, provisions swap. Idempotent — safe to re-run.
+2. **`nftables.conf`** — installed and applied automatically by
+   `bootstrap.sh`, before WireGuard's `wg0` interface needs to exist:
+   `iifname "wg0"` is a plain string match, not an interface lookup, so the
+   rule loads fine with no such interface yet. To re-apply by hand after
+   editing the file, use `nft -f nftables.conf` (or `nft -c -f nftables.conf`
+   to check syntax without applying) — never `systemctl restart nftables`,
+   see the warnings in the file's header comment.
+3. **WireGuard** — bring up `wg0` whenever convenient; the ruleset's
+   SSH-over-VPN and `iifname "wg0" accept` rules are already active from
+   bootstrap and start matching the moment the interface exists.
 4. **`setup.sh`** — interactive script (run on the box at
    `/opt/volleyspike/setup.sh`) that prompts for credentials, writes the
    per-service `.env.*` files, and starts the Docker stack.
+
+## Before running `setup.sh`
+
+`setup.sh` only generates secrets and starts the stack — it creates
+`$DEPLOY_PATH/{caddy,init,migrations,backups}` but does not populate them,
+and it does not fetch the compose files or telemetry config it then runs.
+Docker fills in any missing bind-mount *source* by materializing an empty
+root-owned directory at that path, so a missing file fails quietly: `caddy`
+crash-loops on "Caddyfile is a directory" while `setup.sh` itself still
+prints "Setup Complete" and exits 0. None of this is synced by the
+per-service CI/CD pipeline (`deploy-service.yml` only ships migration
+bundles to `$DEPLOY_PATH/migrations`) — get all of the following onto the
+box, out of band, before the first `setup.sh` run:
+
+- **Compose files** — `docker-compose.yml`, `docker-compose.<environment>.yml`,
+  `docker-compose.exporters.yml`, from this repo's `docker/`, directly at
+  `$DEPLOY_PATH` (`setup.sh` runs `docker compose` from there with bare
+  `-f docker-compose.yml` filenames).
+- **`caddy/Caddyfile.production`** — from this repo's `caddy/`, at
+  `$DEPLOY_PATH/caddy/Caddyfile.production`.
+- **`caddy/certs/origin.pem` and `origin.key`** — the Cloudflare Origin CA
+  cert. Never committed (`caddy/certs/` is gitignored) — issue it in
+  Cloudflare and place both files at `$DEPLOY_PATH/caddy/certs/` by hand.
+- **`init/`** — Postgres init scripts, from this repo's `docker/init/`, at
+  `$DEPLOY_PATH/init/`.
+- **`alloy/config.alloy`** — from this repo's `docker/alloy/`, at
+  `$DEPLOY_PATH/alloy/config.alloy` (only needed if running
+  `docker-compose.exporters.yml`).
+- **`otel-collector/otel-collector-config.yml`** — from this repo's
+  `docker/otel-collector/`, at `$DEPLOY_PATH/otel-collector/`.
+- **Monitor scripts** — `provisioning/scripts/docker-monitor.sh` and
+  `provisioning/systemd/docker-monitor.service` from this repo, copied
+  **flat** to `$DEPLOY_PATH/docker-monitor.sh` and
+  `$DEPLOY_PATH/docker-monitor.service` (no `provisioning/` prefix —
+  `setup.sh` reads them straight from `$DEPLOY_PATH`; it skips installing the
+  monitor with a warning, rather than aborting, if they're missing). Also
+  copy `provisioning/scripts/docker-stats-collector.sh` the same way — it
+  feeds node-exporter's textfile collector but isn't installed by either
+  script, so schedule it yourself (cron or a systemd timer).
 
 ## Migrating an existing environment
 
