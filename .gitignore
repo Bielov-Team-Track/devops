@@ -1,1 +1,4 @@
 .serena
+
+# Cloudflare Origin CA cert + private key installed directly on the server (Task 6) — secret, never commit
+caddy/certs/
