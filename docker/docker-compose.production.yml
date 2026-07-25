@@ -23,7 +23,7 @@ services:
     env_file: .env.common
     ports:
       - "127.0.0.1:5432:5432"
-      - "10.10.0.2:5432:5432"
+      - "${WG_BIND_IP:-10.10.0.2}:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U volleyer_user"]
       interval: 30s
@@ -65,7 +65,7 @@ services:
   rabbitmq:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15692:15692"
+      - "${WG_BIND_IP:-10.10.0.2}:15692:15692"
     env_file: .env.common
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
@@ -87,7 +87,7 @@ services:
   auth-service:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15005:15005"
+      - "${WG_BIND_IP:-10.10.0.2}:15005:15005"
     env_file: [.env.common, .env.auth]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -105,7 +105,7 @@ services:
   events-service:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15010:15010"
+      - "${WG_BIND_IP:-10.10.0.2}:15010:15010"
     env_file: [.env.common, .env.events]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -123,7 +123,7 @@ services:
   clubs-service:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15020:15020"
+      - "${WG_BIND_IP:-10.10.0.2}:15020:15020"
     env_file: [.env.common, .env.clubs]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -141,7 +141,7 @@ services:
   profiles-service:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15170:15170"
+      - "${WG_BIND_IP:-10.10.0.2}:15170:15170"
     env_file: [.env.common, .env.profiles]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -159,7 +159,7 @@ services:
   messages-service:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15180:15180"
+      - "${WG_BIND_IP:-10.10.0.2}:15180:15180"
     env_file: [.env.common, .env.messages]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -177,7 +177,7 @@ services:
   notifications-service:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15030:15030"
+      - "${WG_BIND_IP:-10.10.0.2}:15030:15030"
     env_file: [.env.common, .env.notifications]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -195,7 +195,7 @@ services:
   social-service:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15040:15040"
+      - "${WG_BIND_IP:-10.10.0.2}:15040:15040"
     env_file: [.env.common, .env.social]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -213,7 +213,7 @@ services:
   coaching-service:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15060:15060"
+      - "${WG_BIND_IP:-10.10.0.2}:15060:15060"
     env_file: [.env.common, .env.coaching]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
@@ -231,7 +231,7 @@ services:
   payments-service:
     restart: unless-stopped
     ports:
-      - "10.10.0.2:15050:15050"
+      - "${WG_BIND_IP:-10.10.0.2}:15050:15050"
     env_file: [.env.common, .env.payments]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
