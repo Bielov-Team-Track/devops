@@ -338,21 +338,31 @@ ENVIRONMENT=${ENVIRONMENT}
 EOF
   fi
 
-  # Install monitor script and systemd service
-  sudo cp "$DEPLOY_PATH/docker-monitor.sh" /opt/volleyspike/docker-monitor.sh
-  sudo chmod +x /opt/volleyspike/docker-monitor.sh
-  sudo cp "$DEPLOY_PATH/docker-monitor.service" /etc/systemd/system/docker-monitor.service
-  sudo systemctl daemon-reload
-  sudo systemctl enable docker-monitor.service
-  sudo systemctl start docker-monitor.service
-  echo "  Docker monitor service installed and started."
+  # Install monitor script and systemd service. Both must already be staged at
+  # $DEPLOY_PATH (see README "Before running setup.sh") — skip with a warning
+  # instead of aborting the whole script if the operator hasn't placed them yet.
+  if [ -f "$DEPLOY_PATH/docker-monitor.sh" ] && [ -f "$DEPLOY_PATH/docker-monitor.service" ]; then
+    sudo chmod +x "$DEPLOY_PATH/docker-monitor.sh"
+    sudo cp "$DEPLOY_PATH/docker-monitor.service" /etc/systemd/system/docker-monitor.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable docker-monitor.service
+    sudo systemctl start docker-monitor.service
+    echo "  Docker monitor service installed and started."
+  else
+    echo "  Skipping Docker monitor install: docker-monitor.sh/.service not found in $DEPLOY_PATH."
+  fi
 else
   echo "  Skipping Docker monitor setup (no Telegram credentials)."
 fi
 
-# 14. Secure permissions
-chmod 600 "$DEPLOY_PATH"/.env.*
-chmod 600 "$DEPLOY_PATH/.env"
+# 14. Secure permissions. Some .env.* files (e.g. .env.monitoring, used by
+# docker-compose.exporters.yml) are root-owned on real servers; chmod on a
+# file this user doesn't own returns EPERM and would abort the whole script.
+for f in "$DEPLOY_PATH"/.env "$DEPLOY_PATH"/.env.*; do
+  [ -e "$f" ] || continue
+  [ -O "$f" ] || { echo "  skipping $f (not owned by $(whoami))"; continue; }
+  chmod 600 "$f"
+done
 
 echo ""
 echo "  Environment files written."
