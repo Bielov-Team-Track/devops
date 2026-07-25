@@ -46,17 +46,17 @@ if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "production" ]; then
   exit 1
 fi
 
-# 4. Prompt for domain and frontend URL
+# 4. Prompt for frontend URL
+# The former "API Domain" prompt was removed: the DOMAIN it set was never consumed
+# anywhere in this script, and its staging default was wrong besides
+# ("staging.api.volleyspike.app" — the staging host actually serves
+# "staging-api.volleyspike.app"). A prompt that configures nothing but looks like
+# it does is worse than no prompt. See SPI-5711.
 if [ "$ENVIRONMENT" = "staging" ]; then
-  DEFAULT_DOMAIN="staging.api.volleyspike.app"
   DEFAULT_FRONTEND="https://staging.volleyspike.app"
 else
-  DEFAULT_DOMAIN="api.volleyspike.app"
   DEFAULT_FRONTEND="https://www.volleyspike.app"
 fi
-
-read -rp "API Domain [$DEFAULT_DOMAIN]: " DOMAIN
-DOMAIN="${DOMAIN:-$DEFAULT_DOMAIN}"
 
 read -rp "Frontend URL [$DEFAULT_FRONTEND]: " FRONTEND_URL
 FRONTEND_URL="${FRONTEND_URL:-$DEFAULT_FRONTEND}"
@@ -431,7 +431,14 @@ for i in $(seq 1 30); do
 done
 
 # 21. Get SSH fingerprint for GitHub secrets
-SSH_FINGERPRINT=$(ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub 2>/dev/null | awk '{print $2}') || SSH_FINGERPRINT="(could not read - run: ssh-keyscan -t ed25519 <this-ip> | ssh-keygen -lf -)"
+# Must be the ECDSA host key, NOT ed25519. The deploy workflows use appleboy/scp-action
+# and ssh-action, whose Go x/crypto/ssh client negotiates ecdsa-sha2-nistp256, while
+# OpenSSH negotiates ed25519 against the same host. Pinning the ed25519 fingerprint makes
+# every deploy fail with "ssh: handshake failed: ssh: host key fingerprint mismatch" —
+# which reads as an auth problem but is purely a wrong pin. Keep the SHA256: prefix.
+# Verified by running the real appleboy/drone-scp image against a host with each candidate:
+# ed25519 (with and without prefix) and rsa all MISMATCH; ecdsa ACCEPTED. See SPI-5745.
+SSH_FINGERPRINT=$(ssh-keygen -lf /etc/ssh/ssh_host_ecdsa_key.pub 2>/dev/null | awk '{print $2}') || SSH_FINGERPRINT="(could not read - run: ssh-keyscan -t ecdsa <this-ip> | ssh-keygen -lf -)"
 
 # 22. Print summary
 SERVER_IP=$(hostname -I | awk '{print $1}')
