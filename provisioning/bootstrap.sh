@@ -13,7 +13,7 @@ timedatectl set-timezone Europe/London
 apt-get remove --purge -y ufw || true
 apt-get update -qq
 apt-get install -y -qq ca-certificates curl gnupg nftables wireguard-tools \
-                       postgresql-client-15 rsync jq
+                       rsync jq
 
 systemctl enable --now nftables
 
@@ -29,6 +29,19 @@ https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_C
   apt-get update -qq
   apt-get install -y -qq docker-ce docker-ce-cli containerd.io \
                          docker-buildx-plugin docker-compose-plugin
+fi
+
+# PGDG for postgresql-client-15: noble's own repos only ship client 16, but
+# the server runs postgres:15-alpine (15.17) — the host client must match.
+if ! dpkg -s postgresql-client-15 >/dev/null 2>&1; then
+  install -d /usr/share/postgresql-common/pgdg
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+  echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo "$VERSION_CODENAME")-pgdg main" \
+    > /etc/apt/sources.list.d/pgdg.list
+  apt-get update -qq
+  apt-get install -y -qq postgresql-client-15
 fi
 
 # Pin the firewall backend. An unattended flip is what caused the 17-day outage.
