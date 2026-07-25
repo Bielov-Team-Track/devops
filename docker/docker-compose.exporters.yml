@@ -1,0 +1,71 @@
+# Deploy on production server alongside the main docker-compose
+# Usage: docker compose -f docker-compose.exporters.yml up -d
+
+services:
+  node-exporter:
+    image: prom/node-exporter:v1.9.0
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--no-collector.arp'
+      - '--no-collector.infiniband'
+      - '--no-collector.mdadm'
+      - '--no-collector.nfs'
+      - '--no-collector.nfsd'
+      - '--no-collector.tapestats'
+      - '--web.listen-address=${WG_BIND_IP:-10.10.0.2}:9100'
+      - '--collector.textfile.directory=/textfile'
+    volumes:
+      - /:/host:ro,rslave
+      - /var/lib/node_exporter:/textfile:ro
+    network_mode: host
+    pid: host
+    security_opt:
+      - no-new-privileges:true
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    container_name: postgres-exporter
+    restart: unless-stopped
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres_exporter:${PG_EXPORTER_PASSWORD}@localhost:5432/postgres?sslmode=disable
+    command:
+      - '--web.listen-address=${WG_BIND_IP:-10.10.0.2}:9187'
+    network_mode: host
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    container_name: redis-exporter
+    restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis://localhost:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command:
+      - '--web.listen-address=${WG_BIND_IP:-10.10.0.2}:9121'
+    network_mode: host
+
+  alloy:
+    image: grafana/alloy:v1.6.1
+    container_name: alloy
+    restart: unless-stopped
+    environment:
+      - GOMEMLIMIT=200MiB
+    command:
+      - run
+      - --server.http.listen-addr=${WG_BIND_IP:-10.10.0.2}:12345
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy
+    network_mode: host
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  alloy_data:

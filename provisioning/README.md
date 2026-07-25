@@ -82,3 +82,20 @@ reusing the copied file instead of overwriting it.
   `${WG_BIND_IP:-10.10.0.2}` rather than the literal address, so the stack
   can start on a host that doesn't (yet) own `10.10.0.2`. Set `WG_BIND_IP` in
   that server's `.env` to override the default.
+
+## Telemetry exporters
+
+`docker/docker-compose.exporters.yml` runs the host-network telemetry agents
+— `node-exporter`, `postgres-exporter`, `redis-exporter`, `alloy` — alongside
+the main stack. Start it with both env files:
+
+```bash
+docker compose -f docker-compose.exporters.yml --env-file .env --env-file .env.monitoring up -d
+```
+
+Its four bind addresses (`--web.listen-address` on the three exporters,
+`--server.http.listen-addr` on `alloy`) use the same
+`${WG_BIND_IP:-10.10.0.2}` convention as `docker-compose.production.yml`, for
+the same reason: this file previously hardcoded `10.10.0.2` and crash-looped
+on any host that isn't the origin server (`bind: cannot assign requested
+address`).
