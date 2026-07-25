@@ -69,8 +69,13 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      # Same high/critical threshold as `npm audit --audit-level=high`, but able to
+      # accept individual advisory IDs. A bare `npm audit` is all-or-nothing: the
+      # only way past a consciously accepted finding is to lower the threshold,
+      # which then stops catching every future finding too. Allowlist entries live
+      # in frontend/scripts/audit-ci.js and expire on a fixed date.
       - name: Run npm audit
-        run: npm audit --audit-level=high
+        run: npm run audit:ci
 
       - name: Run ESLint
         run: npm run lint
