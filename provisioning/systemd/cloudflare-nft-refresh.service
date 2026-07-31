@@ -1,0 +1,8 @@
+[Unit]
+Description=Refresh Cloudflare IP sets in the nftables volleyspike table
+After=nftables.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/refresh-cloudflare-nft.sh
