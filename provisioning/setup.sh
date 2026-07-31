@@ -250,6 +250,8 @@ EOF
   cat >> "$DEPLOY_PATH/.env.events" << 'EOF'
 Services__ClubsService__Url=http://clubs-service:5021
 Services__CoachingService__Url=http://coaching-service:5061
+Services__PaymentsService__Url=http://payments-service:5051
+Services__ProfilesService__Url=http://profiles-service:5171
 EOF
 
   cat >> "$DEPLOY_PATH/.env.social" << 'EOF'
@@ -258,6 +260,7 @@ EOF
 
   cat >> "$DEPLOY_PATH/.env.payments" << 'EOF'
 GrpcClients__ClubsService=http://clubs-service:5021
+GrpcClients__ProfilesService=http://profiles-service:5171
 EOF
 
   # Service-specific URLs
