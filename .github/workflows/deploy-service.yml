@@ -213,6 +213,8 @@ jobs:
             # Load DB connection strings from env files
             for envfile in "$DEPLOY_PATH"/.env.*; do
               [ -f "$envfile" ] || continue
+              # Skip unreadable strays (e.g. root-owned backups) — deploy runs as a non-root user
+              [ -r "$envfile" ] || continue
               while IFS='=' read -r key value; do
                 [ -z "$key" ] && continue
                 case "$key" in \#*) continue ;; esac
