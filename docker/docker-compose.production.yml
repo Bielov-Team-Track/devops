@@ -10,6 +10,7 @@ services:
       - ./caddy/certs:/etc/caddy/certs:ro
       - caddy_data:/data
       - caddy_config:/config
+      - caddy_logs:/var/log/caddy
     networks:
       - volleyer-network
     # No depends_on — Caddy returns 502 for unavailable upstreams until they start.
@@ -293,3 +294,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  caddy_logs:
