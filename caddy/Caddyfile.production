@@ -205,6 +205,19 @@ api.volleyspike.app {
 www.volleyspike.app {
     tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
 
+    # Without this the frontend host was logged NOWHERE: the default access logger only
+    # covers hostnames with no site block of their own, and the Next.js container prints
+    # nothing. A 5.4k-request scanner sweep on 2026-08-18 existed only in Cloudflare's
+    # analytics and left no trace on the box. `log` is not a route handler, so it does not
+    # take part in the directive ordering described below.
+    log {
+        output file /var/log/caddy/access-www.log {
+            roll_size 50MiB
+            roll_keep 5
+        }
+        format json
+    }
+
     # Caddy compiles this block in the REVERSE of source order: `handle
     # /_next/static/*` matches first, then `respond /api/health`, then the
     # bare `reverse_proxy` last as the catch-all (verified with `caddy adapt`
