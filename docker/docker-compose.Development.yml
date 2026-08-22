@@ -158,6 +158,8 @@ services:
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Services/bin
             - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Guardian/bin
+            - /app/shared/Shared.Guardian/obj
             - /app/shared/Shared.Testing/bin
             - /app/shared/Shared.Testing/obj
         networks:
@@ -215,6 +217,8 @@ services:
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Services/bin
             - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Guardian/bin
+            - /app/shared/Shared.Guardian/obj
             - /app/shared/Shared.Testing/bin
             - /app/shared/Shared.Testing/obj
         networks:
@@ -273,6 +277,8 @@ services:
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Services/bin
             - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Guardian/bin
+            - /app/shared/Shared.Guardian/obj
             - /app/shared/Shared.Testing/bin
             - /app/shared/Shared.Testing/obj
         networks:
@@ -328,6 +334,8 @@ services:
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Services/bin
             - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Guardian/bin
+            - /app/shared/Shared.Guardian/obj
             - /app/shared/Shared.Testing/bin
             - /app/shared/Shared.Testing/obj
         networks:
@@ -387,6 +395,8 @@ services:
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Services/bin
             - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Guardian/bin
+            - /app/shared/Shared.Guardian/obj
             - /app/shared/Shared.Testing/bin
             - /app/shared/Shared.Testing/obj
         networks:
@@ -447,6 +457,8 @@ services:
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Services/bin
             - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Guardian/bin
+            - /app/shared/Shared.Guardian/obj
             - /app/shared/Shared.Testing/bin
             - /app/shared/Shared.Testing/obj
         networks:
@@ -506,6 +518,8 @@ services:
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Services/bin
             - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Guardian/bin
+            - /app/shared/Shared.Guardian/obj
             - /app/shared/Shared.Testing/bin
             - /app/shared/Shared.Testing/obj
         networks:
@@ -565,6 +579,8 @@ services:
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Services/bin
             - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Guardian/bin
+            - /app/shared/Shared.Guardian/obj
             - /app/shared/Shared.Testing/bin
             - /app/shared/Shared.Testing/obj
         networks:
@@ -622,6 +638,8 @@ services:
             - /app/shared/Shared.Microservices/obj
             - /app/shared/Shared.Services/bin
             - /app/shared/Shared.Services/obj
+            - /app/shared/Shared.Guardian/bin
+            - /app/shared/Shared.Guardian/obj
             - /app/shared/Shared.Testing/bin
             - /app/shared/Shared.Testing/obj
         networks:
